@@ -17,6 +17,11 @@ export async function ensureWebPushSubscribed() {
   if (!('serviceWorker' in navigator)) throw new Error('Service worker not supported')
   if (!('PushManager' in window)) throw new Error('Push not supported')
 
+  if (!window.isSecureContext) {
+    // Web Push requires a secure context. Local HTTP can fail in many browsers.
+    throw new Error('Web Push requires a secure context (HTTPS). Test this on your HTTPS domain, not plain HTTP localhost.')
+  }
+
   const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined
   if (!vapidPublicKey) throw new Error('Missing VITE_VAPID_PUBLIC_KEY')
 
