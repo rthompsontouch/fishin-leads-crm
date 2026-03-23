@@ -41,7 +41,7 @@ export async function ensureWebPushSubscribed() {
 
   const permission = await Notification.requestPermission()
   if (permission !== 'granted') {
-    throw new Error('Notification permission not granted')
+    throw new Error(`Notification permission not granted. currentPermission=${permission}`)
   }
 
   // Register and WAIT until there's an active SW before subscribing.
