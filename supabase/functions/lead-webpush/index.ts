@@ -97,7 +97,14 @@ serve(async (req) => {
   try {
     const payload = (await req.json()) as DatabaseWebhookPayload
     const record = payload.record
+    console.log('[lead-webpush] invoked', {
+      schema: payload?.schema ?? null,
+      table: payload?.table ?? null,
+      type: payload?.type ?? null,
+      hasRecord: Boolean(record),
+    })
     if (!record?.owner_id || !record.lead_id) {
+      console.warn('[lead-webpush] bad payload', payload)
       return json(req, { ok: false, error: { code: 'BAD_PAYLOAD', message: 'Missing owner_id or lead_id.' } }, 400)
     }
 
@@ -136,6 +143,10 @@ serve(async (req) => {
     if (subsErr) throw subsErr
 
     const subscriptions = subs ?? []
+    console.log('[lead-webpush] subscriptions loaded', {
+      ownerId: record.owner_id,
+      count: subscriptions.length,
+    })
     if (subscriptions.length === 0) {
       return json(req, { ok: true, sent: 0 })
     }
@@ -152,6 +163,7 @@ serve(async (req) => {
     const payloadText = JSON.stringify(stripUndefined({ title, body, url }))
 
     let sent = 0
+    let failed = 0
     for (const s of subscriptions) {
       const subscriber = appServer.subscribe({
         endpoint: s.endpoint,
@@ -165,8 +177,14 @@ serve(async (req) => {
         })
         sent += 1
       } catch (e) {
+        failed += 1
+        const err = e as any
+        console.error('[lead-webpush] push send failed', {
+          endpoint: s.endpoint,
+          message: typeof err?.message === 'string' ? err.message : String(e),
+          status: err?.status ?? err?.statusCode ?? null,
+        })
         // If the subscription is gone, you can optionally delete it.
-        const err = e as unknown
         const maybeGone =
           typeof (err as any)?.isGone === 'function' ? (err as any).isGone() : false
         if (maybeGone && 'id' in (s ?? {})) {
@@ -175,8 +193,10 @@ serve(async (req) => {
       }
     }
 
-    return json(req, { ok: true, sent })
+    console.log('[lead-webpush] completed', { ownerId: record.owner_id, leadId: record.lead_id, sent, failed })
+    return json(req, { ok: true, sent, failed })
   } catch (e) {
+    console.error('[lead-webpush] internal error', e)
     return json(req, { ok: false, error: { code: 'INTERNAL_ERROR', message: String((e as Error).message ?? e) } }, 500)
   }
 })
