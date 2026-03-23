@@ -29,6 +29,15 @@ export type JobRow = {
   updated_at: string
 }
 
+export type JobWithQuoteSummary = JobRow & {
+  quote: {
+    id: string
+    price_amount: number
+    price_currency: string
+    description: string | null
+  } | null
+}
+
 async function getUserId() {
   if (!supabase) throw new Error('Supabase client not configured')
   const {
@@ -138,6 +147,41 @@ export async function listUpcomingJobs() {
       | 'notes'
     >
   >
+}
+
+export async function listJobsByCustomer(customerId: string) {
+  if (!supabase) throw new Error('Supabase client not configured')
+  const ownerId = await getUserId()
+
+  const { data, error } = await supabase
+    .from('jobs')
+    .select(
+      [
+        'id',
+        'owner_id',
+        'lead_id',
+        'quote_id',
+        'customer_id',
+        'status',
+        'scheduled_date',
+        'notes',
+        'is_recurring',
+        'recurrence_unit',
+        'reminder_at',
+        'reminder_sent_at',
+        'last_completed_at',
+        'created_at',
+        'updated_at',
+        'quote:quotes(id,price_amount,price_currency,description)',
+      ].join(','),
+    )
+    .eq('owner_id', ownerId)
+    .eq('customer_id', customerId)
+    .eq('status', 'Scheduled')
+    .order('scheduled_date', { ascending: true })
+
+  if (error) throw error
+  return (data ?? []) as unknown as JobWithQuoteSummary[]
 }
 
 export type CreateJobInput = {

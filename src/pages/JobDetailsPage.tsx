@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useNavigate, Link, useParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { completeJob, getJobById } from '../features/jobs/api/jobsApi'
+import { getQuoteById } from '../features/quotes/api/quotesApi'
 
 function isLikelyUuid(v: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v)
@@ -25,6 +26,12 @@ export default function JobDetailsPage() {
     enabled,
   })
 
+  const { data: quote } = useQuery({
+    queryKey: ['quote', job?.quote_id],
+    queryFn: () => getQuoteById(job!.quote_id),
+    enabled: Boolean(job?.quote_id),
+  })
+
   const [files, setFiles] = useState<File[]>([])
   const [completedNotes, setCompletedNotes] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -42,7 +49,7 @@ export default function JobDetailsPage() {
 
   return (
     <div className="flex flex-col gap-6 max-md:pt-2">
-      <div className="flex items-start justify-between gap-4 flex-wrap">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <div className="text-xs opacity-70">
             <Link to="/">Dashboard</Link>
@@ -85,7 +92,12 @@ export default function JobDetailsPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <div className="text-xs opacity-70">Quote</div>
-                <div className="text-sm font-semibold break-all">{job.quote_id}</div>
+                <div className="text-sm font-semibold break-all">
+                  {quote ? `${quote.price_currency} ${quote.price_amount}` : job.quote_id}
+                </div>
+                {quote?.description?.trim() ? (
+                  <div className="text-xs opacity-70 mt-1 whitespace-pre-wrap">{quote.description}</div>
+                ) : null}
               </div>
               <div>
                 <div className="text-xs opacity-70">Status</div>
@@ -146,16 +158,15 @@ export default function JobDetailsPage() {
                 }}
               >
                 <label className="flex flex-col gap-1 text-sm">
-                  Upload photos (optional)
+                  Upload attachments (optional)
                   <input
                     type="file"
-                    accept="image/png,image/jpeg,image/webp"
                     multiple
                     onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
                     className="rounded-md border px-3 py-2 outline-none"
                     style={{ borderColor: 'var(--color-border)' }}
                   />
-                  <div className="text-xs opacity-70">{files.length ? `${files.length} selected` : 'No photos selected'}</div>
+                  <div className="text-xs opacity-70">{files.length ? `${files.length} selected` : 'No attachments selected'}</div>
                 </label>
 
                 <label className="flex flex-col gap-1 text-sm">

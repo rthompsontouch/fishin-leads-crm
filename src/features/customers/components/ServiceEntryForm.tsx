@@ -25,8 +25,8 @@ export default function ServiceEntryForm({
   const [submitting, setSubmitting] = useState(false)
 
   const attachmentsHint = useMemo(() => {
-    if (files.length === 0) return 'Optional images.'
-    return `${files.length} image(s) selected.`
+    if (files.length === 0) return 'Optional attachments (photos or docs).'
+    return `${files.length} attachment(s) selected.`
   }, [files.length])
 
   return (
@@ -115,10 +115,9 @@ export default function ServiceEntryForm({
       </label>
 
       <label className="flex flex-col gap-1 text-sm">
-        Images (optional)
+        Attachments (optional)
         <input
           type="file"
-          accept="image/png,image/jpeg,image/webp"
           multiple
           onChange={(e) => {
             const list = Array.from(e.target.files ?? [])

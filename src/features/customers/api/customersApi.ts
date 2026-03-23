@@ -16,6 +16,16 @@ export type CustomerRow = Database['public']['Tables']['customers']['Row']
 export type CustomerNoteRow = Database['public']['Tables']['customer_notes']['Row']
 export type ServiceEntryRow = Database['public']['Tables']['service_entries']['Row']
 export type ServiceAttachmentRow = Database['public']['Tables']['service_attachments']['Row']
+export type CustomerActivityEventRow = {
+  id: string
+  owner_id: string
+  customer_id: string
+  activity_type: string
+  summary: string
+  target_path: string | null
+  metadata: Record<string, unknown> | null
+  created_at: string
+}
 
 export type CreateCustomerInput = {
   name: string
@@ -88,6 +98,7 @@ export type CreateServiceEntryInput = {
 }
 
 type ServiceEntryWithAttachments = ServiceEntryRow & {
+  job_id: string | null
   attachments: Array<ServiceAttachmentRow & { signed_url: string | null }>
 }
 
@@ -417,14 +428,14 @@ export async function listServiceEntries(customerId: string) {
 
   const { data: services, error } = await supabase
     .from('service_entries')
-    .select(['id', 'customer_id', 'service_date', 'description', 'price_amount', 'price_currency', 'created_at', 'updated_at'].join(','))
+    .select(['id', 'customer_id', 'job_id', 'service_date', 'description', 'price_amount', 'price_currency', 'created_at', 'updated_at'].join(','))
     .eq('customer_id', customerId)
     .order('service_date', { ascending: false })
-    .returns<ServiceEntryRow[]>()
+    .returns<any[]>()
 
   if (error) throw error
 
-  const serviceIds = (services ?? []).map((s) => s.id)
+  const serviceIds = (services ?? []).map((s) => s.id as string)
   if (serviceIds.length === 0) return [] as ServiceEntryWithAttachments[]
 
   const { data: attachments, error: attachmentsError } = await supabase
@@ -471,6 +482,20 @@ export async function listServiceEntries(customerId: string) {
     ...(s as any),
     attachments: mapSigned.get(s.id) ?? [],
   })) as ServiceEntryWithAttachments[]
+}
+
+export async function listCustomerActivityEvents(customerId: string, limit = 100) {
+  if (!supabase) throw new Error('Supabase client not configured')
+
+  const { data, error } = await supabase
+    .from('customer_activity_events')
+    .select('id,owner_id,customer_id,activity_type,summary,target_path,metadata,created_at')
+    .eq('customer_id', customerId)
+    .order('created_at', { ascending: false })
+    .limit(limit)
+
+  if (error) throw error
+  return (data ?? []) as unknown as CustomerActivityEventRow[]
 }
 
 function sanitizeFileName(name: string) {

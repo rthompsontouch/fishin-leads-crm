@@ -48,6 +48,7 @@ export default function SettingsPage() {
   const [pushUiError, setPushUiError] = useState<string | null>(null)
   const [pushTestBusy, setPushTestBusy] = useState(false)
   const [pushTestResult, setPushTestResult] = useState<string | null>(null)
+  const [settingsSection, setSettingsSection] = useState<'account' | 'security'>('account')
   const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined
 
   const {
@@ -250,7 +251,33 @@ export default function SettingsPage() {
         </div>
       ) : null}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setSettingsSection('account')}
+          className={`rounded-md px-3 py-2 text-sm font-semibold border cursor-pointer transition-colors duration-150 ${
+            settingsSection === 'account'
+              ? 'text-white border-transparent bg-[color:var(--color-primary)] hover:bg-[color:var(--color-primary-dark)]'
+              : 'border-[color:var(--color-border)] bg-transparent text-[color:var(--color-foreground)] hover:bg-[color:var(--color-surface-2)]'
+          }`}
+        >
+          Account Information
+        </button>
+        <button
+          type="button"
+          onClick={() => setSettingsSection('security')}
+          className={`rounded-md px-3 py-2 text-sm font-semibold border cursor-pointer transition-colors duration-150 ${
+            settingsSection === 'security'
+              ? 'text-white border-transparent bg-[color:var(--color-primary)] hover:bg-[color:var(--color-primary-dark)]'
+              : 'border-[color:var(--color-border)] bg-transparent text-[color:var(--color-foreground)] hover:bg-[color:var(--color-surface-2)]'
+          }`}
+        >
+          Security
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6">
+        {settingsSection === 'account' ? (
         <div className="rounded-xl border p-6" style={{ borderColor: 'var(--color-border)' }}>
           <div className="text-sm font-semibold mb-3">Account details</div>
 
@@ -411,7 +438,9 @@ export default function SettingsPage() {
             </form>
           )}
         </div>
+        ) : null}
 
+        {settingsSection === 'security' ? (
         <div className="rounded-xl border p-6" style={{ borderColor: 'var(--color-border)' }}>
           <div className="text-sm font-semibold mb-3">Security</div>
 
@@ -595,6 +624,7 @@ export default function SettingsPage() {
             </div>
           </form>
         </div>
+        ) : null}
       </div>
     </div>
   )

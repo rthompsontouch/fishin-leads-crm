@@ -11,12 +11,14 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   deleteCustomer,
   getCustomerById,
+  listCustomerActivityEvents,
   listCustomerNotes,
   listServiceEntries,
   deleteCustomerNote,
   updateCustomer,
   deleteServiceEntryWithImages,
 } from '../features/customers/api/customersApi'
+import { listJobsByCustomer } from '../features/jobs/api/jobsApi'
 import ContactActionButtons from '../components/ContactActionButtons'
 import {
   OverviewBlock,
@@ -74,6 +76,26 @@ export default function CustomerDetailsPage() {
     enabled: Boolean(safeCustomerId) && isValidUuid,
   })
 
+  const {
+    data: upcomingJobs,
+    isPending: isJobsPending,
+    error: jobsError,
+  } = useQuery({
+    queryKey: ['customer-jobs', safeCustomerId],
+    queryFn: () => listJobsByCustomer(safeCustomerId),
+    enabled: Boolean(safeCustomerId) && isValidUuid,
+  })
+
+  const {
+    data: activity,
+    isPending: isActivityPending,
+    error: activityError,
+  } = useQuery({
+    queryKey: ['customer-activity', safeCustomerId],
+    queryFn: () => listCustomerActivityEvents(safeCustomerId, 100),
+    enabled: Boolean(safeCustomerId) && isValidUuid,
+  })
+
   const [isEditing, setIsEditing] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
   const [noteSearch, setNoteSearch] = useState('')
@@ -99,7 +121,7 @@ export default function CustomerDetailsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex items-center justify-between gap-4">
         <div>
           <div className="text-xs opacity-70">
             <Link to="/customers">Customers</Link>
@@ -479,6 +501,64 @@ export default function CustomerDetailsPage() {
 
       <div className="rounded-xl border p-5" style={{ borderColor: 'var(--color-border)' }}>
         <div className="flex items-center justify-between gap-3">
+          <div className="text-sm font-semibold">Upcoming jobs</div>
+        </div>
+
+        {jobsError ? (
+          <div className="text-sm mt-3" style={{ color: 'var(--color-danger)' }}>
+            Failed to load jobs: {String((jobsError as Error).message)}
+          </div>
+        ) : isJobsPending ? (
+          <div className="text-sm opacity-80 mt-3">Loading jobs...</div>
+        ) : upcomingJobs && upcomingJobs.length > 0 ? (
+          <div className="flex flex-col gap-3 mt-4">
+            {upcomingJobs.map((job) => (
+              <div key={job.id} className="rounded-xl border p-4" style={{ borderColor: 'var(--color-border)' }}>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="space-y-1">
+                    <div className="text-sm font-semibold">
+                      {job.status === 'Scheduled' ? 'Scheduled' : 'Completed'} •{' '}
+                      {new Date(job.scheduled_date).toLocaleDateString()}
+                    </div>
+                    <div className="text-xs opacity-80">
+                      {job.quote
+                        ? `Original quote: ${job.quote.price_currency} ${job.quote.price_amount}`
+                        : `Quote ID: ${job.quote_id}`}
+                    </div>
+                    {job.quote?.description?.trim() ? (
+                      <div className="text-xs opacity-70 whitespace-pre-wrap">{job.quote.description}</div>
+                    ) : null}
+                    {job.notes?.trim() ? (
+                      <div className="text-xs opacity-70 whitespace-pre-wrap">Job notes: {job.notes}</div>
+                    ) : null}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {job.lead_id ? (
+                      <Link
+                        to={`/leads/${job.lead_id}`}
+                        className="rounded-md px-3 py-1.5 text-xs font-semibold border cursor-pointer transition-colors duration-150 border-[color:var(--color-border)] bg-transparent text-[color:var(--color-foreground)] hover:bg-[color:var(--color-surface-2)]"
+                      >
+                        Open lead
+                      </Link>
+                    ) : null}
+                    <Link
+                      to={`/jobs/${job.id}`}
+                      className="rounded-md px-3 py-1.5 text-xs font-semibold text-white cursor-pointer transition-colors duration-150 bg-[color:var(--color-primary)] hover:bg-[color:var(--color-primary-dark)]"
+                    >
+                      Open job
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="mt-4 text-sm opacity-80">No upcoming jobs yet.</div>
+        )}
+      </div>
+
+      <div className="rounded-xl border p-5" style={{ borderColor: 'var(--color-border)' }}>
+        <div className="flex items-center justify-between gap-3">
           <div className="text-sm font-semibold">Service history</div>
         </div>
 
@@ -502,13 +582,24 @@ export default function CustomerDetailsPage() {
                         ? `Price: ${s.price_amount} ${s.price_currency}`
                         : 'No price'}
                     </div>
+                    {s.job_id ? (
+                      <div className="text-xs mt-2">
+                        <Link
+                          to={`/jobs/${s.job_id}`}
+                          className="font-semibold no-underline"
+                          style={{ color: 'var(--color-primary)' }}
+                        >
+                          Open source job
+                        </Link>
+                      </div>
+                    ) : null}
                   </div>
                   <button
                     type="button"
                     className="text-xs font-semibold rounded-md px-2 py-1 border cursor-pointer transition-colors duration-150 border-[color:var(--color-border)] bg-transparent text-[color:var(--color-foreground)] hover:bg-[color:var(--color-surface-2)] hover:text-[color:var(--color-danger)] disabled:opacity-50 disabled:cursor-not-allowed"
                     onClick={async () => {
                       const ok = window.confirm(
-                        'Delete this service entry (and its images)?',
+                        'Delete this service entry (and its attachments)?',
                       )
                       if (!ok) return
                       setActionError(null)
@@ -536,12 +627,22 @@ export default function CustomerDetailsPage() {
                         className="w-20 h-20 rounded-md overflow-hidden border"
                         style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface-1)' }}
                       >
-                        {a.signed_url ? (
+                        {a.signed_url && (a.content_type ?? '').startsWith('image/') ? (
                           <img
                             src={a.signed_url}
                             alt={a.file_name}
                             className="w-full h-full object-cover"
                           />
+                        ) : a.signed_url ? (
+                          <a
+                            href={a.signed_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="h-full w-full flex items-center justify-center text-[10px] p-2 break-all text-center no-underline"
+                            style={{ color: 'var(--color-primary)' }}
+                          >
+                            {a.file_name}
+                          </a>
                         ) : (
                           <div className="text-[10px] p-2 break-all opacity-70">
                             {a.file_name}
@@ -551,7 +652,7 @@ export default function CustomerDetailsPage() {
                     ))}
                   </div>
                 ) : (
-                  <div className="text-xs opacity-70 mt-3">No images</div>
+                  <div className="text-xs opacity-70 mt-3">No attachments</div>
                 )}
               </div>
             ))}
@@ -570,6 +671,45 @@ export default function CustomerDetailsPage() {
             onError={(msg) => setActionError(msg)}
           />
         </div>
+      </div>
+
+      <div className="rounded-xl border p-5" style={{ borderColor: 'var(--color-border)' }}>
+        <div className="flex items-center justify-between gap-3">
+          <div className="text-sm font-semibold">Activity log</div>
+        </div>
+
+        {activityError ? (
+          <div className="text-sm mt-3" style={{ color: 'var(--color-danger)' }}>
+            Failed to load activity: {String((activityError as Error).message)}
+          </div>
+        ) : isActivityPending ? (
+          <div className="text-sm opacity-80 mt-3">Loading activity...</div>
+        ) : activity && activity.length > 0 ? (
+          <div className="mt-4 flex flex-col gap-2">
+            {activity.map((evt) => (
+              <div
+                key={evt.id}
+                className="rounded-lg border px-3 py-2 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2"
+                style={{ borderColor: 'var(--color-border)' }}
+              >
+                <div>
+                  <div className="text-sm">{evt.summary}</div>
+                  <div className="text-xs opacity-70">{new Date(evt.created_at).toLocaleString()}</div>
+                </div>
+                {evt.target_path ? (
+                  <Link
+                    to={evt.target_path}
+                    className="rounded-md px-2 py-1 text-xs font-semibold border cursor-pointer transition-colors duration-150 border-[color:var(--color-border)] bg-transparent text-[color:var(--color-foreground)] hover:bg-[color:var(--color-surface-2)] no-underline self-start sm:self-auto"
+                  >
+                    Open
+                  </Link>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="mt-4 text-sm opacity-80">No activity yet.</div>
+        )}
       </div>
     </div>
   )
