@@ -22,6 +22,19 @@ function urlBase64ToUint8Array(base64String: string) {
   return outputArray
 }
 
+function getServiceWorkerUrl() {
+  const base = (import.meta.env.BASE_URL as string | undefined) || '/'
+  const normalizedBase = base.endsWith('/') ? base : `${base}/`
+  return `${normalizedBase}sw.js`
+}
+
+async function subscribeOnce(registration: ServiceWorkerRegistration, applicationServerKey: BufferSource) {
+  return registration.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey,
+  })
+}
+
 export async function ensureWebPushSubscribed() {
   if (!('serviceWorker' in navigator)) throw new Error('Service worker not supported')
   if (!('PushManager' in window)) throw new Error('Push not supported')
@@ -47,8 +60,9 @@ export async function ensureWebPushSubscribed() {
   // Register and WAIT until there's an active SW before subscribing.
   // Otherwise some browsers throw "no active service worker".
   // Also confirm `sw.js` is reachable (helps diagnose 404/scope issues).
+  const swUrl = getServiceWorkerUrl()
   try {
-    const resp = await fetch('/sw.js', { cache: 'no-store' })
+    const resp = await fetch(swUrl, { cache: 'no-store' })
     if (!resp.ok) {
       throw new Error(`sw.js fetch failed: HTTP ${resp.status}`)
     }
@@ -57,7 +71,7 @@ export async function ensureWebPushSubscribed() {
     throw new Error(`Cannot reach sw.js. ${msg}`)
   }
 
-  await navigator.serviceWorker.register('/sw.js')
+  await navigator.serviceWorker.register(swUrl)
   const registration = await navigator.serviceWorker.ready
   if (!registration.active || registration.active.state !== 'activated') {
     // Give the SW a moment to transition to "activated".
@@ -88,27 +102,47 @@ export async function ensureWebPushSubscribed() {
 
   let subscription: PushSubscription
   try {
-    subscription = await registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey,
-    })
+    subscription = await subscribeOnce(registration, applicationServerKey)
   } catch (e) {
+    // Chromium can throw AbortError ("Registration failed - push service error")
+    // for stale service worker state or transient push service issues.
+    const staleSub = await registration.pushManager.getSubscription()
+    if (staleSub) {
+      try {
+        await staleSub.unsubscribe()
+      } catch {
+        // best effort
+      }
+    }
+    try {
+      await registration.unregister()
+    } catch {
+      // best effort
+    }
+    await navigator.serviceWorker.register(swUrl)
+    const retryRegistration = await navigator.serviceWorker.ready
     const msg = e instanceof Error ? e.message : String(e)
     const name = e instanceof Error ? e.name : 'UnknownError'
-    const swState = registration.active?.state ?? null
-    console.error('[web push] subscribe failed', {
-      name,
-      msg,
-      secureContext: window.isSecureContext,
-      href: window.location.href,
-      swState,
-      vapidKeyInfo,
-    })
-    throw new Error(
-      `Push subscribe failed (${name}). ${msg}\nsecureContext=${String(
-        window.isSecureContext,
-      )} swState=${String(swState)}\nurl=${window.location.href}\nappServerKeyLen=${appServerKeyLen}\nvapidKey=len:${vapidKeyInfo.len} head:${vapidKeyInfo.head} tail:${vapidKeyInfo.tail}`,
-    )
+    try {
+      subscription = await subscribeOnce(retryRegistration, applicationServerKey)
+    } catch (e2) {
+      const msg2 = e2 instanceof Error ? e2.message : String(e2)
+      const name2 = e2 instanceof Error ? e2.name : 'UnknownError'
+      const swState = retryRegistration.active?.state ?? null
+      console.error('[web push] subscribe failed', {
+        firstError: { name, msg },
+        retryError: { name: name2, msg: msg2 },
+        secureContext: window.isSecureContext,
+        href: window.location.href,
+        swState,
+        vapidKeyInfo,
+      })
+      throw new Error(
+        `Push subscribe failed (${name2}). ${msg2}\nsecureContext=${String(
+          window.isSecureContext,
+        )} swState=${String(swState)}\nurl=${window.location.href}\nappServerKeyLen=${appServerKeyLen}\nvapidKey=len:${vapidKeyInfo.len} head:${vapidKeyInfo.head} tail:${vapidKeyInfo.tail}\nIf this is Chrome desktop, check chrome://gcm-internals shows CONNECTED and disable blockers/firewall/VPN for FCM.`,
+      )
+    }
   }
 
   const json = subscription.toJSON()

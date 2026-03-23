@@ -395,3 +395,6 @@ verify_jwt = false
 
 [functions.marketing-crm-signup]
 verify_jwt = false
+
+[functions.lead-webpush]
+verify_jwt = false

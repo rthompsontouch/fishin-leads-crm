@@ -272,6 +272,7 @@ supabase functions deploy lead-webpush
 ```
 
 The function returns **CORS** headers and handles **OPTIONS** preflight so the Settings **Send test notification** button works from a custom domain (e.g. Vercel). Redeploy after changing the function.
+`lead-webpush` is configured with `verify_jwt = false` in `supabase/config.toml` so Database Webhooks can invoke it without end-user JWT auth.
 
 ### 4) Create a Database Webhook (manual dashboard step)
 Supabase Dashboard → **Database** → **Webhooks** (or **Integrations → Webhooks**, depending on UI):
