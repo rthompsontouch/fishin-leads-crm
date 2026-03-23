@@ -463,39 +463,19 @@ export default function SettingsPage() {
                   try {
                     const { data: sessionData, error: sessionErr } = await supabase.auth.getSession()
                     if (sessionErr) throw sessionErr
-                    const session = sessionData?.session
-                    const userId = session?.user?.id
-                    const accessToken = session?.access_token
-                    if (!userId || !accessToken) throw new Error('Not authenticated for test push.')
+                    const userId = sessionData?.session?.user?.id
+                    if (!userId) throw new Error('Not authenticated for test push.')
 
-                    // Any valid UUID is OK for test. Edge function will still send a notification.
+                    // Enqueue a synthetic push event to exercise the same webhook path as real leads.
                     const testLeadId = crypto.randomUUID()
+                    const { error: enqueueErr } = await supabase.from('lead_push_events').insert({
+                      owner_id: userId,
+                      lead_id: testLeadId,
+                    } as any)
+                    if (enqueueErr) throw enqueueErr
 
-                    const baseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined
-                    if (!baseUrl) throw new Error('Missing VITE_SUPABASE_URL')
-
-                    const url = `${baseUrl.replace(/\/$/, '')}/functions/v1/lead-webpush`
-                    const resp = await fetch(url, {
-                      method: 'POST',
-                      headers: {
-                        'Content-Type': 'application/json',
-                        Authorization: `Bearer ${accessToken}`,
-                      },
-                      body: JSON.stringify({
-                        record: {
-                          owner_id: userId,
-                          lead_id: testLeadId,
-                        },
-                      }),
-                    })
-
-                    const text = await resp.text()
-                    if (!resp.ok) {
-                      throw new Error(`Test push failed HTTP ${resp.status}: ${text}`)
-                    }
-
-                    setPushTestResult(`Test push request succeeded. Response: ${text}`)
-                    toastSuccess('Test push sent. If push is working, you should see a popup shortly.')
+                    setPushTestResult('Test push event queued. If push is working, you should see a popup shortly.')
+                    toastSuccess('Test push queued. You should see a popup shortly.')
                   } catch (e) {
                     const msg = formatErrorForUser(e)
                     setPushTestResult(`Test push failed: ${msg}`)
