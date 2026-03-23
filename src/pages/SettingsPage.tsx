@@ -466,11 +466,22 @@ export default function SettingsPage() {
                     const userId = sessionData?.session?.user?.id
                     if (!userId) throw new Error('Not authenticated for test push.')
 
-                    // Enqueue a synthetic push event to exercise the same webhook path as real leads.
-                    const testLeadId = crypto.randomUUID()
+                    // Use a real lead id because lead_push_events.lead_id has a foreign key to leads.id.
+                    const { data: latestLead, error: latestLeadErr } = await supabase
+                      .from('leads')
+                      .select('id')
+                      .eq('owner_id', userId)
+                      .order('created_at', { ascending: false })
+                      .limit(1)
+                      .maybeSingle()
+                    if (latestLeadErr) throw latestLeadErr
+                    if (!latestLead?.id) {
+                      throw new Error('Create at least one lead first, then retry test push.')
+                    }
+
                     const { error: enqueueErr } = await supabase.from('lead_push_events').insert({
                       owner_id: userId,
-                      lead_id: testLeadId,
+                      lead_id: latestLead.id,
                     } as any)
                     if (enqueueErr) throw enqueueErr
 
