@@ -398,3 +398,6 @@ verify_jwt = false
 
 [functions.lead-webpush]
 verify_jwt = false
+
+[functions.job-reminder-webpush]
+verify_jwt = false

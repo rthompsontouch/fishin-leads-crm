@@ -285,3 +285,17 @@ After login, go to `Settings` and click **Enable notifications**.
 
 Notes:
 - Web Push requires a secure origin (HTTPS, or `localhost` for testing).
+
+### Job reminder dispatch (upcoming service dates)
+This repo includes `supabase/functions/job-reminder-webpush` which:
+1. scans `jobs` where `status='Scheduled'`, `reminder_at <= now()`, and `reminder_sent_at is null`
+2. sends Web Push notifications to the job owner subscriptions
+3. marks sent reminders by setting `reminder_sent_at`
+
+Deploy it:
+```bash
+supabase functions deploy job-reminder-webpush
+```
+
+For immediate testing, use **Settings → Security → Run reminder dispatch now**.
+For production automation, schedule this function in Supabase Dashboard (Cron) to run every 5-15 minutes.

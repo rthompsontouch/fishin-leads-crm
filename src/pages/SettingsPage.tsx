@@ -44,6 +44,8 @@ export default function SettingsPage() {
   const [pushUiError, setPushUiError] = useState<string | null>(null)
   const [pushTestBusy, setPushTestBusy] = useState(false)
   const [pushTestResult, setPushTestResult] = useState<string | null>(null)
+  const [reminderDispatchBusy, setReminderDispatchBusy] = useState(false)
+  const [reminderDispatchResult, setReminderDispatchResult] = useState<string | null>(null)
   const [settingsSection, setSettingsSection] = useState<'account' | 'security'>('account')
   const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined
 
@@ -529,6 +531,49 @@ export default function SettingsPage() {
                 style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface-2)', color: 'var(--color-foreground)', whiteSpace: 'pre-wrap' }}
               >
                 {pushTestResult}
+              </div>
+            ) : null}
+          </div>
+
+          <div className="rounded-lg border p-4 mb-6" style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface-1)' }}>
+            <div className="text-sm font-semibold">Service Reminder Dispatch</div>
+            <div className="text-xs opacity-70 mt-1">
+              Sends push notifications for due scheduled jobs where reminder time has passed.
+            </div>
+            <div className="mt-3">
+              <button
+                type="button"
+                disabled={reminderDispatchBusy || !vapidPublicKey}
+                onClick={async () => {
+                  if (!supabase) throw new Error('Supabase client not configured')
+                  setReminderDispatchBusy(true)
+                  setReminderDispatchResult(null)
+                  try {
+                    const { data, error } = await supabase.functions.invoke('job-reminder-webpush', {
+                      body: { limit: 200, dry_run: false },
+                    })
+                    if (error) throw error
+                    setReminderDispatchResult(`Reminder dispatch completed: ${JSON.stringify(data)}`)
+                    toastSuccess('Reminder dispatch executed.')
+                  } catch (e) {
+                    const msg = formatErrorForUser(e)
+                    setReminderDispatchResult(`Reminder dispatch failed: ${msg}`)
+                    toastError(msg)
+                  } finally {
+                    setReminderDispatchBusy(false)
+                  }
+                }}
+                className="rounded-md px-3 py-2 text-sm font-semibold border cursor-pointer transition-colors duration-150 border-[color:var(--color-border)] bg-transparent text-[color:var(--color-foreground)] hover:bg-[color:var(--color-surface-2)] disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {reminderDispatchBusy ? 'Dispatching…' : 'Run reminder dispatch now'}
+              </button>
+            </div>
+            {reminderDispatchResult ? (
+              <div
+                className="mt-3 text-sm rounded-lg border p-3"
+                style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface-2)', color: 'var(--color-foreground)', whiteSpace: 'pre-wrap' }}
+              >
+                {reminderDispatchResult}
               </div>
             ) : null}
           </div>
