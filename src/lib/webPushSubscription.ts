@@ -22,7 +22,7 @@ export async function ensureWebPushSubscribed() {
     throw new Error('Web Push requires a secure context (HTTPS). Test this on your HTTPS domain, not plain HTTP localhost.')
   }
 
-  const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined
+  const vapidPublicKey = (import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined)?.trim()
   if (!vapidPublicKey) throw new Error('Missing VITE_VAPID_PUBLIC_KEY')
 
   const permission = await Notification.requestPermission()
@@ -32,11 +32,27 @@ export async function ensureWebPushSubscribed() {
 
   // Register and WAIT until there's an active SW before subscribing.
   // Otherwise some browsers throw "no active service worker".
+  // Also confirm `sw.js` is reachable (helps diagnose 404/scope issues).
+  try {
+    const resp = await fetch('/sw.js', { cache: 'no-store' })
+    if (!resp.ok) {
+      throw new Error(`sw.js fetch failed: HTTP ${resp.status}`)
+    }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    throw new Error(`Cannot reach sw.js. ${msg}`)
+  }
+
   await navigator.serviceWorker.register('/sw.js')
   const registration = await navigator.serviceWorker.ready
-  if (!registration.active) {
-    // Give the SW a moment to transition to "active".
-    await new Promise((r) => setTimeout(r, 300))
+  if (!registration.active || registration.active.state !== 'activated') {
+    // Give the SW a moment to transition to "activated".
+    const startedAt = Date.now()
+    while (Date.now() - startedAt < 5000) {
+      const r = await navigator.serviceWorker.ready
+      if (r.active && r.active.state === 'activated') break
+      await new Promise((resolve) => setTimeout(resolve, 250))
+    }
   }
 
   const existing = await registration.pushManager.getSubscription()
@@ -64,7 +80,19 @@ export async function ensureWebPushSubscribed() {
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e)
     const name = e instanceof Error ? e.name : 'UnknownError'
-    throw new Error(`Push subscribe failed (${name}): ${msg}`)
+    const swState = registration.active?.state ?? null
+    console.error('[web push] subscribe failed', {
+      name,
+      msg,
+      secureContext: window.isSecureContext,
+      href: window.location.href,
+      swState,
+    })
+    throw new Error(
+      `Push subscribe failed (${name}). ${msg}\nsecureContext=${String(
+        window.isSecureContext,
+      )} swState=${String(swState)} url=${window.location.href}`,
+    )
   }
 
   const json = subscription.toJSON()

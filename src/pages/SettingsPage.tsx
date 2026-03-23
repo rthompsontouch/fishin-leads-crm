@@ -45,6 +45,7 @@ export default function SettingsPage() {
   const queryClient = useQueryClient()
   const { toastError, toastSuccess } = useAppMessages()
   const [logoBusy, setLogoBusy] = useState(false)
+  const [pushUiError, setPushUiError] = useState<string | null>(null)
   const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined
 
   const {
@@ -432,11 +433,14 @@ export default function SettingsPage() {
                 disabled={isPushSubscriptionPending || !vapidPublicKey || hasPushSubscription}
                 onClick={async () => {
                   try {
+                    setPushUiError(null)
                     await ensureWebPushSubscribed()
                     toastSuccess('Notifications enabled.')
                     await queryClient.invalidateQueries({ queryKey: ['my-push-subscription'] })
                   } catch (e) {
-                    toastError(formatErrorForUser(e))
+                    const msg = formatErrorForUser(e)
+                    setPushUiError(msg)
+                    toastError(msg)
                   }
                 }}
                 className="rounded-md px-3 py-2 text-sm font-semibold text-white cursor-pointer transition-colors duration-150 bg-[color:var(--color-primary)] hover:bg-[color:var(--color-primary-dark)] disabled:opacity-60 disabled:cursor-not-allowed"
@@ -444,6 +448,12 @@ export default function SettingsPage() {
                 {hasPushSubscription ? 'Enabled' : isPushSubscriptionPending ? 'Enabling…' : 'Enable notifications'}
               </button>
             </div>
+
+            {pushUiError ? (
+              <div className="mt-3 text-sm rounded-lg border p-3" style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface-2)', color: 'var(--color-danger)', whiteSpace: 'pre-wrap' }}>
+                {pushUiError}
+              </div>
+            ) : null}
           </div>
 
           <form
