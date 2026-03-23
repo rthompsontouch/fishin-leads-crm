@@ -46,6 +46,8 @@ export default function SettingsPage() {
   const { toastError, toastSuccess } = useAppMessages()
   const [logoBusy, setLogoBusy] = useState(false)
   const [pushUiError, setPushUiError] = useState<string | null>(null)
+  const [pushTestBusy, setPushTestBusy] = useState(false)
+  const [pushTestResult, setPushTestResult] = useState<string | null>(null)
   const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined
 
   const {
@@ -434,6 +436,7 @@ export default function SettingsPage() {
                 onClick={async () => {
                   try {
                     setPushUiError(null)
+                    setPushTestResult(null)
                     await ensureWebPushSubscribed()
                     toastSuccess('Notifications enabled.')
                     await queryClient.invalidateQueries({ queryKey: ['my-push-subscription'] })
@@ -447,11 +450,78 @@ export default function SettingsPage() {
               >
                 {hasPushSubscription ? 'Enabled' : isPushSubscriptionPending ? 'Enabling…' : 'Enable notifications'}
               </button>
+
+              <button
+                type="button"
+                disabled={pushTestBusy || !vapidPublicKey || !hasPushSubscription}
+                onClick={async () => {
+                  if (!supabase) throw new Error('Supabase client not configured')
+                  if (!vapidPublicKey) throw new Error('Missing VITE_VAPID_PUBLIC_KEY')
+
+                  setPushTestBusy(true)
+                  setPushTestResult(null)
+                  try {
+                    const { data: sessionData, error: sessionErr } = await supabase.auth.getSession()
+                    if (sessionErr) throw sessionErr
+                    const session = sessionData?.session
+                    const userId = session?.user?.id
+                    const accessToken = session?.access_token
+                    if (!userId || !accessToken) throw new Error('Not authenticated for test push.')
+
+                    // Any valid UUID is OK for test. Edge function will still send a notification.
+                    const testLeadId = crypto.randomUUID()
+
+                    const baseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined
+                    if (!baseUrl) throw new Error('Missing VITE_SUPABASE_URL')
+
+                    const url = `${baseUrl.replace(/\/$/, '')}/functions/v1/lead-webpush`
+                    const resp = await fetch(url, {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        Authorization: `Bearer ${accessToken}`,
+                      },
+                      body: JSON.stringify({
+                        record: {
+                          owner_id: userId,
+                          lead_id: testLeadId,
+                        },
+                      }),
+                    })
+
+                    const text = await resp.text()
+                    if (!resp.ok) {
+                      throw new Error(`Test push failed HTTP ${resp.status}: ${text}`)
+                    }
+
+                    setPushTestResult(`Test push request succeeded. Response: ${text}`)
+                    toastSuccess('Test push sent. If push is working, you should see a popup shortly.')
+                  } catch (e) {
+                    const msg = formatErrorForUser(e)
+                    setPushTestResult(`Test push failed: ${msg}`)
+                    toastError(msg)
+                  } finally {
+                    setPushTestBusy(false)
+                  }
+                }}
+                className="rounded-md px-3 py-2 text-sm font-semibold border cursor-pointer transition-colors duration-150 border-[color:var(--color-border)] bg-transparent text-[color:var(--color-foreground)] hover:bg-[color:var(--color-surface-2)] disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {pushTestBusy ? 'Sending…' : 'Send test notification'}
+              </button>
             </div>
 
             {pushUiError ? (
               <div className="mt-3 text-sm rounded-lg border p-3" style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface-2)', color: 'var(--color-danger)', whiteSpace: 'pre-wrap' }}>
                 {pushUiError}
+              </div>
+            ) : null}
+
+            {pushTestResult ? (
+              <div
+                className="mt-3 text-sm rounded-lg border p-3"
+                style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface-2)', color: 'var(--color-foreground)', whiteSpace: 'pre-wrap' }}
+              >
+                {pushTestResult}
               </div>
             ) : null}
           </div>
