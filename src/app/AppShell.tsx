@@ -56,12 +56,10 @@ const topNavItems: Array<{
   },
 ]
 
-const settingsNavItem = {
-  href: '/settings',
-  label: 'Settings',
-  icon: Settings,
-  iconColorClass: 'text-slate-500',
-} as const
+const settingsSubNav = [
+  { href: '/settings?section=account', label: 'Account information' },
+  { href: '/settings?section=security', label: 'Security' },
+] as const
 
 const integrationSubNav = [
   { href: '/integrations/leads', label: 'Website & leads' },
@@ -70,6 +68,10 @@ const integrationSubNav = [
 
 function isIntegrationArea(pathname: string) {
   return pathname.startsWith('/integrations')
+}
+
+function isSettingsArea(pathname: string) {
+  return pathname.startsWith('/settings')
 }
 
 function isIntegrationSubActive(href: string, pathname: string) {
@@ -155,6 +157,19 @@ export default function AppShell() {
     const prevInt = isIntegrationArea(prev)
     if (nowInt && !prevInt) setIntegrationsOpen(true)
     if (!nowInt && prevInt) setIntegrationsOpen(false)
+  }, [location.pathname])
+
+  const [settingsOpen, setSettingsOpen] = useState(() =>
+    isSettingsArea(location.pathname),
+  )
+  const settingsPathRef = useRef(location.pathname)
+  useEffect(() => {
+    const prev = settingsPathRef.current
+    settingsPathRef.current = location.pathname
+    const nowSet = isSettingsArea(location.pathname)
+    const prevSet = isSettingsArea(prev)
+    if (nowSet && !prevSet) setSettingsOpen(true)
+    if (!nowSet && prevSet) setSettingsOpen(false)
   }, [location.pathname])
 
   const [isCollapsed, setIsCollapsed] = useState(() => {
@@ -370,41 +385,82 @@ export default function AppShell() {
               </div>
             )}
 
-            {(() => {
-              const item = settingsNavItem
-              const isActive = location.pathname === item.href || location.pathname.startsWith(item.href)
-              const Icon = item.icon
-              return (
-                <Link
-                  key={item.href}
-                  to={item.href}
+            {isCollapsed ? (
+              <Link
+                to="/settings?section=account"
+                className={[
+                  'cursor-pointer w-full rounded-md py-2 flex items-center justify-center h-12 transition-colors',
+                  isSettingsArea(location.pathname)
+                    ? 'bg-[color:var(--color-primary)] text-white'
+                    : 'hover:bg-[color:var(--color-surface-2)]',
+                ].join(' ')}
+                title="Settings"
+              >
+                <Settings
+                  size={22}
                   className={[
-                    'cursor-pointer w-full rounded-md py-2 flex items-center transition-colors',
-                    isCollapsed ? 'justify-center px-0 h-12' : 'justify-start px-3',
-                    isActive
+                    'shrink-0 transition-colors',
+                    isSettingsArea(location.pathname) ? 'text-white' : 'text-slate-500',
+                  ].join(' ')}
+                />
+              </Link>
+            ) : (
+              <div className="flex flex-col gap-1 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setSettingsOpen((v) => !v)}
+                  className={[
+                    'cursor-pointer w-full rounded-md py-2 flex items-center gap-2 px-3 text-left transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-primary)]',
+                    isSettingsArea(location.pathname)
                       ? 'bg-[color:var(--color-primary)] text-white'
                       : 'hover:bg-[color:var(--color-surface-2)]',
                   ].join(' ')}
-                  title={isCollapsed ? item.label : undefined}
+                  aria-expanded={settingsOpen}
                 >
-                  <Icon
-                    size={isCollapsed ? 22 : 18}
+                  <Settings
+                    size={18}
                     className={[
                       'shrink-0 transition-colors',
-                      isActive ? 'text-white' : item.iconColorClass,
+                      isSettingsArea(location.pathname) ? 'text-white' : 'text-slate-500',
                     ].join(' ')}
                   />
-                  <span
-                    className={[
-                      'ml-3 font-medium text-sm',
-                      isCollapsed ? 'hidden' : 'inline',
-                    ].join(' ')}
+                  <span className="font-medium text-sm flex-1">Settings</span>
+                  {settingsOpen ? (
+                    <ChevronDown size={16} className="shrink-0 opacity-80" />
+                  ) : (
+                    <ChevronRight size={16} className="shrink-0 opacity-80" />
+                  )}
+                </button>
+                {settingsOpen ? (
+                  <div
+                    className="ml-3 pl-3 flex flex-col gap-0.5 border-l"
+                    style={{ borderColor: 'var(--color-border)' }}
                   >
-                    {item.label}
-                  </span>
-                </Link>
-              )
-            })()}
+                    {settingsSubNav.map((sub) => {
+                      const subPath = sub.href.split('?')[0]
+                      const subQuery = sub.href.split('?')[1] ?? ''
+                      const active =
+                        location.pathname === subPath &&
+                        (subQuery ? location.search.includes(subQuery) : true)
+                      return (
+                        <Link
+                          key={sub.href}
+                          to={sub.href}
+                          className={[
+                            'cursor-pointer rounded-md py-1.5 px-2 text-sm font-medium transition-colors',
+                            active
+                              ? 'bg-[color:var(--color-primary)] text-white'
+                              : 'hover:bg-[color:var(--color-surface-2)]',
+                          ].join(' ')}
+                        >
+                          {sub.label}
+                        </Link>
+                      )
+                    })}
+                  </div>
+                ) : null}
+              </div>
+            )}
           </nav>
 
           <Link
@@ -643,34 +699,62 @@ export default function AppShell() {
                 ) : null}
               </div>
 
-              {(() => {
-                const item = settingsNavItem
-                const isActive =
-                  location.pathname === item.href || location.pathname.startsWith(item.href)
-                const Icon = item.icon
-                return (
-                  <Link
-                    key={item.href}
-                    to={item.href}
-                    onClick={() => setIsMobileMenuOpen(false)}
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => setSettingsOpen((v) => !v)}
+                  className={[
+                    'cursor-pointer w-full rounded-md px-3 py-3 text-sm font-medium flex items-center gap-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-primary)]',
+                    isSettingsArea(location.pathname)
+                      ? 'bg-[color:var(--color-primary)] text-white'
+                      : 'hover:bg-[color:var(--color-surface-2)]',
+                  ].join(' ')}
+                  aria-expanded={settingsOpen}
+                >
+                  <Settings
+                    size={18}
                     className={[
-                      'cursor-pointer rounded-md px-3 py-3 text-sm font-medium flex items-center gap-3',
-                      isActive
-                        ? 'bg-[color:var(--color-primary)] text-white'
-                        : 'hover:bg-[color:var(--color-surface-2)]',
+                      'shrink-0 transition-colors',
+                      isSettingsArea(location.pathname) ? 'text-white' : 'text-slate-500',
                     ].join(' ')}
+                  />
+                  <span className="flex-1">Settings</span>
+                  {settingsOpen ? (
+                    <ChevronDown size={18} className="shrink-0 opacity-80" />
+                  ) : (
+                    <ChevronRight size={18} className="shrink-0 opacity-80" />
+                  )}
+                </button>
+                {settingsOpen ? (
+                  <div
+                    className="flex flex-col gap-0.5 ml-2 pl-3 border-l mt-1"
+                    style={{ borderColor: 'var(--color-border)' }}
                   >
-                    <Icon
-                      size={18}
-                      className={[
-                        'shrink-0 transition-colors',
-                        isActive ? 'text-white' : item.iconColorClass,
-                      ].join(' ')}
-                    />
-                    <span>{item.label}</span>
-                  </Link>
-                )
-              })()}
+                    {settingsSubNav.map((sub) => {
+                      const subPath = sub.href.split('?')[0]
+                      const subQuery = sub.href.split('?')[1] ?? ''
+                      const active =
+                        location.pathname === subPath &&
+                        (subQuery ? location.search.includes(subQuery) : true)
+                      return (
+                        <Link
+                          key={sub.href}
+                          to={sub.href}
+                          onClick={() => setIsMobileMenuOpen(false)}
+                          className={[
+                            'cursor-pointer rounded-md px-3 py-2.5 text-sm font-medium',
+                            active
+                              ? 'bg-[color:var(--color-primary)] text-white'
+                              : 'hover:bg-[color:var(--color-surface-2)]',
+                          ].join(' ')}
+                        >
+                          {sub.label}
+                        </Link>
+                      )
+                    })}
+                  </div>
+                ) : null}
+              </div>
             </nav>
 
             <div className="p-5 pb-6 flex flex-col gap-4">

@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
+import { Link, useSearchParams } from 'react-router-dom'
 import {
   changeMyEmail,
   changeMyPassword,
@@ -46,7 +47,8 @@ export default function SettingsPage() {
   const [pushTestResult, setPushTestResult] = useState<string | null>(null)
   const [reminderDispatchBusy, setReminderDispatchBusy] = useState(false)
   const [reminderDispatchResult, setReminderDispatchResult] = useState<string | null>(null)
-  const [settingsSection, setSettingsSection] = useState<'account' | 'security'>('account')
+  const [searchParams] = useSearchParams()
+  const settingsSection = searchParams.get('section') === 'security' ? 'security' : 'account'
   const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined
 
   const {
@@ -245,35 +247,17 @@ export default function SettingsPage() {
         </div>
       ) : null}
 
-      <div className="flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          onClick={() => setSettingsSection('account')}
-          className={`rounded-md px-3 py-2 text-sm font-semibold border cursor-pointer transition-colors duration-150 ${
-            settingsSection === 'account'
-              ? 'text-white border-transparent bg-[color:var(--color-primary)] hover:bg-[color:var(--color-primary-dark)]'
-              : 'border-[color:var(--color-border)] bg-transparent text-[color:var(--color-foreground)] hover:bg-[color:var(--color-surface-2)]'
-          }`}
-        >
-          Account Information
-        </button>
-        <button
-          type="button"
-          onClick={() => setSettingsSection('security')}
-          className={`rounded-md px-3 py-2 text-sm font-semibold border cursor-pointer transition-colors duration-150 ${
-            settingsSection === 'security'
-              ? 'text-white border-transparent bg-[color:var(--color-primary)] hover:bg-[color:var(--color-primary-dark)]'
-              : 'border-[color:var(--color-border)] bg-transparent text-[color:var(--color-foreground)] hover:bg-[color:var(--color-surface-2)]'
-          }`}
-        >
-          Security
-        </button>
-      </div>
-
       <div className="grid grid-cols-1 gap-6">
         {settingsSection === 'account' ? (
         <div className="rounded-xl border p-6" style={{ borderColor: 'var(--color-border)' }}>
           <div className="text-sm font-semibold mb-3">Account details</div>
+          <div className="text-xs opacity-70 mb-4">
+            Trying to change your email or password?{' '}
+            <Link to="/settings?section=security" className="font-semibold" style={{ color: 'var(--color-primary)' }}>
+              Go to Security
+            </Link>
+            .
+          </div>
 
           <div
             className="mb-5 rounded-lg border p-4"
@@ -432,6 +416,13 @@ export default function SettingsPage() {
         {settingsSection === 'security' ? (
         <div className="rounded-xl border p-6" style={{ borderColor: 'var(--color-border)' }}>
           <div className="text-sm font-semibold mb-3">Security</div>
+          <div className="text-xs opacity-70 mb-4">
+            Need company/profile updates?{' '}
+            <Link to="/settings?section=account" className="font-semibold" style={{ color: 'var(--color-primary)' }}>
+              Go to Account Information
+            </Link>
+            .
+          </div>
 
           <div className="text-sm opacity-80 mb-4">
             Current email: <span style={{ fontWeight: 700 }}>{currentEmail ?? '—'}</span>

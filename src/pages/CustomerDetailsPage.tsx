@@ -2,8 +2,6 @@ import { useMemo, useState } from 'react'
 import NoteSummaryCard from '../components/NoteSummaryCard'
 import NotesDatabaseSetupHint from '../components/NotesDatabaseSetupHint'
 import {
-  MAX_NOTES_PER_RECORD,
-  noteLimitReachedMessage,
 } from '../lib/noteDbCompat'
 import { noteMatchesSearch } from '../lib/noteUi'
 import { Link, useNavigate, useParams } from 'react-router-dom'
@@ -18,7 +16,7 @@ import {
   updateCustomer,
   deleteServiceEntryWithImages,
 } from '../features/customers/api/customersApi'
-import { listJobsByCustomer } from '../features/jobs/api/jobsApi'
+import { createManualJobForCustomer, listJobsByCustomer } from '../features/jobs/api/jobsApi'
 import ContactActionButtons from '../components/ContactActionButtons'
 import {
   OverviewBlock,
@@ -99,6 +97,16 @@ export default function CustomerDetailsPage() {
   const [isEditing, setIsEditing] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
   const [noteSearch, setNoteSearch] = useState('')
+  const [manualJobDate, setManualJobDate] = useState(() => {
+    const d = new Date()
+    const pad = (n: number) => String(n).padStart(2, '0')
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+  })
+  const [manualJobNotes, setManualJobNotes] = useState('')
+  const [manualJobReminderAt, setManualJobReminderAt] = useState('')
+  const [manualJobRecurring, setManualJobRecurring] = useState(false)
+  const [manualJobRecurrenceUnit, setManualJobRecurrenceUnit] = useState<'weekly' | 'biweekly' | 'monthly'>('weekly')
+  const [manualJobSubmitting, setManualJobSubmitting] = useState(false)
 
   const filteredNotes = useMemo(() => {
     if (!notes) return []
@@ -395,13 +403,7 @@ export default function CustomerDetailsPage() {
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-3">
             <div className="text-sm font-semibold">Customer notes</div>
             <div className="text-xs opacity-70">
-              {notes?.length != null ? (
-                <span className="tabular-nums">
-                  {notes.length} / {MAX_NOTES_PER_RECORD} notes
-                </span>
-              ) : (
-                '—'
-              )}
+              {notes?.length != null ? <span className="tabular-nums">{notes.length} notes</span> : '—'}
               {notes && notes.length > 0 && noteSearch.trim() ? (
                 <span className="ml-2">• showing {filteredNotes.length}</span>
               ) : null}
@@ -474,26 +476,17 @@ export default function CustomerDetailsPage() {
           <div className="mt-5 border-t pt-5">
             <div className="text-sm font-semibold mb-3">Add a note</div>
             {isValidUuid ? (
-              (notes?.length ?? 0) >= MAX_NOTES_PER_RECORD ? (
-                <div
-                  className="text-sm rounded-lg border px-3 py-2"
-                  style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface-2)' }}
-                >
-                  {noteLimitReachedMessage()}
-                </div>
-              ) : (
-                <CustomerNoteComposer
-                  customerId={safeCustomerId}
-                  onAdded={async () => {
-                    setActionError(null)
-                    await queryClient.invalidateQueries({
-                      queryKey: ['customer-notes', safeCustomerId],
-                      exact: false,
-                    })
-                  }}
-                  onError={(msg) => setActionError(msg)}
-                />
-              )
+              <CustomerNoteComposer
+                customerId={safeCustomerId}
+                onAdded={async () => {
+                  setActionError(null)
+                  await queryClient.invalidateQueries({
+                    queryKey: ['customer-notes', safeCustomerId],
+                    exact: false,
+                  })
+                }}
+                onError={(msg) => setActionError(msg)}
+              />
             ) : null}
           </div>
         </div>
@@ -503,6 +496,97 @@ export default function CustomerDetailsPage() {
         <div className="flex items-center justify-between gap-3">
           <div className="text-sm font-semibold">Upcoming jobs</div>
         </div>
+
+        <form
+          className="mt-4 rounded-lg border p-3 grid grid-cols-1 md:grid-cols-2 gap-3"
+          style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface-1)' }}
+          onSubmit={async (e) => {
+            e.preventDefault()
+            if (!safeCustomerId) return
+            setActionError(null)
+            setManualJobSubmitting(true)
+            try {
+              await createManualJobForCustomer({
+                customer_id: safeCustomerId,
+                scheduled_date: manualJobDate,
+                notes: manualJobNotes.trim() ? manualJobNotes.trim() : null,
+                is_recurring: manualJobRecurring,
+                recurrence_unit: manualJobRecurring ? manualJobRecurrenceUnit : null,
+                reminder_at: manualJobReminderAt ? new Date(manualJobReminderAt) : null,
+                quote_price_amount: 0,
+                quote_description: 'Manual job',
+              })
+              setManualJobNotes('')
+              setManualJobReminderAt('')
+              await queryClient.invalidateQueries({ queryKey: ['customer-jobs', safeCustomerId], exact: false })
+              await queryClient.invalidateQueries({ queryKey: ['customer-activity', safeCustomerId], exact: false })
+            } catch (err) {
+              setActionError(String((err as Error).message ?? err))
+            } finally {
+              setManualJobSubmitting(false)
+            }
+          }}
+        >
+          <label className="flex flex-col gap-1 text-sm">
+            Schedule date
+            <input
+              type="date"
+              value={manualJobDate}
+              onChange={(e) => setManualJobDate(e.target.value)}
+              className="rounded-md border px-3 py-2 outline-none"
+              style={{ borderColor: 'var(--color-border)' }}
+              required
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-sm">
+            Reminder (optional)
+            <input
+              type="datetime-local"
+              value={manualJobReminderAt}
+              onChange={(e) => setManualJobReminderAt(e.target.value)}
+              className="rounded-md border px-3 py-2 outline-none"
+              style={{ borderColor: 'var(--color-border)' }}
+            />
+          </label>
+          <label className="md:col-span-2 flex flex-col gap-1 text-sm">
+            Job notes (optional)
+            <textarea
+              value={manualJobNotes}
+              onChange={(e) => setManualJobNotes(e.target.value)}
+              className="rounded-md border px-3 py-2 outline-none"
+              style={{ borderColor: 'var(--color-border)', minHeight: 80 }}
+            />
+          </label>
+          <div className="md:col-span-2 flex flex-wrap items-center gap-3">
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={manualJobRecurring}
+                onChange={(e) => setManualJobRecurring(e.target.checked)}
+              />
+              Recurring
+            </label>
+            {manualJobRecurring ? (
+              <select
+                value={manualJobRecurrenceUnit}
+                onChange={(e) => setManualJobRecurrenceUnit(e.target.value as any)}
+                className="rounded-md border px-3 py-2 outline-none text-sm"
+                style={{ borderColor: 'var(--color-border)' }}
+              >
+                <option value="weekly">Weekly</option>
+                <option value="biweekly">Biweekly</option>
+                <option value="monthly">Monthly</option>
+              </select>
+            ) : null}
+            <button
+              type="submit"
+              disabled={manualJobSubmitting}
+              className="ml-auto rounded-md px-3 py-2 text-sm font-semibold text-white cursor-pointer transition-colors duration-150 bg-[color:var(--color-primary)] hover:bg-[color:var(--color-primary-dark)] disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {manualJobSubmitting ? 'Creating…' : 'Create manual job'}
+            </button>
+          </div>
+        </form>
 
         {jobsError ? (
           <div className="text-sm mt-3" style={{ color: 'var(--color-danger)' }}>

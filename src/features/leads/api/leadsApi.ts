@@ -1,9 +1,7 @@
 import type { Database } from '../../../lib/supabase.types'
 import {
   isMissingNotesTitleColumnError,
-  MAX_NOTES_PER_RECORD,
   normalizeLeadNoteRow,
-  noteLimitReachedMessage,
 } from '../../../lib/noteDbCompat'
 import { addCustomerNote, getCustomerById } from '../../customers/api/customersApi'
 import { supabase } from '../../../lib/supabaseClient'
@@ -298,16 +296,6 @@ export async function addLeadNote(leadId: string, input: CreateLeadNoteInput) {
   const ownerId = await getUserId()
   if (!supabase) throw new Error('Supabase client not configured')
 
-  const { count: existing, error: countError } = await supabase
-    .from('lead_notes')
-    .select('id', { count: 'exact', head: true })
-    .eq('lead_id', leadId)
-
-  if (countError) throw countError
-  if ((existing ?? 0) >= MAX_NOTES_PER_RECORD) {
-    throw new Error(noteLimitReachedMessage())
-  }
-
   const occurred =
     input.occurred_at instanceof Date
       ? input.occurred_at.toISOString()
@@ -409,13 +397,13 @@ export async function convertLeadToCustomer(leadId: string) {
 
   if (customerError) throw customerError
 
-  // 2) Copy up to (MAX-1) most recent lead notes, then add conversion note (max 5 total).
+  // 2) Copy lead notes and add conversion note.
   const leadNotes = await listLeadNotes(leadId)
   const sorted = [...(leadNotes ?? [])].sort(
     (a, b) =>
       new Date(b.occurred_at).getTime() - new Date(a.occurred_at).getTime(),
   )
-  const toCopy = sorted.slice(0, MAX_NOTES_PER_RECORD - 1)
+  const toCopy = sorted
 
   for (const n of toCopy) {
     await addCustomerNote(customer.id, {
@@ -533,17 +521,7 @@ export async function mergeLeadIntoCustomer(leadId: string, customerId: string) 
 
   if (updateErr) throw updateErr
 
-  const { count: existingCount, error: countErr } = await supabase
-    .from('customer_notes')
-    .select('id', { count: 'exact', head: true })
-    .eq('customer_id', customerId)
-
-  if (countErr) throw countErr
-
-  const existing = existingCount ?? 0
-  const remainingSlots = Math.max(0, MAX_NOTES_PER_RECORD - existing)
-
-  // Copy most recent lead notes, leaving one slot for the conversion note when possible.
+  // Copy lead notes and then add conversion note.
   const leadNotes = await listLeadNotes(leadId)
   const sorted = [...(leadNotes ?? [])].sort(
     (a, b) =>
@@ -557,8 +535,7 @@ export async function mergeLeadIntoCustomer(leadId: string, customerId: string) 
     occurred_at: new Date(),
   }
 
-  const copyLeadNotesCount = Math.max(0, remainingSlots - 1)
-  const toCopy = sorted.slice(0, copyLeadNotesCount)
+  const toCopy = sorted
 
   for (const n of toCopy) {
     await addCustomerNote(customerId, {
@@ -569,9 +546,7 @@ export async function mergeLeadIntoCustomer(leadId: string, customerId: string) 
     })
   }
 
-  if (remainingSlots > 0) {
-    await addCustomerNote(customerId, conversionNote)
-  }
+  await addCustomerNote(customerId, conversionNote)
 
   // Link lead -> customer (keep the lead record).
   await supabase

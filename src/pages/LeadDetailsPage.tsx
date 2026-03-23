@@ -2,8 +2,6 @@ import { useMemo, useState } from 'react'
 import NoteSummaryCard from '../components/NoteSummaryCard'
 import NotesDatabaseSetupHint from '../components/NotesDatabaseSetupHint'
 import {
-  MAX_NOTES_PER_RECORD,
-  noteLimitReachedMessage,
 } from '../lib/noteDbCompat'
 import { noteMatchesSearch } from '../lib/noteUi'
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
@@ -498,13 +496,7 @@ export default function LeadDetailsPage() {
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-3">
             <div className="text-sm font-semibold">Lead notes</div>
             <div className="text-xs opacity-70">
-              {notes?.length != null ? (
-                <span className="tabular-nums">
-                  {notes.length} / {MAX_NOTES_PER_RECORD} notes
-                </span>
-              ) : (
-                '—'
-              )}
+              {notes?.length != null ? <span className="tabular-nums">{notes.length} notes</span> : '—'}
               {notes && notes.length > 0 && noteSearch.trim() ? (
                 <span className="ml-2">• showing {filteredNotes.length}</span>
               ) : null}
@@ -578,26 +570,17 @@ export default function LeadDetailsPage() {
           <div className="mt-5 border-t pt-5">
             <div className="text-sm font-semibold mb-3">Add a note</div>
             {isValidUuid ? (
-              (notes?.length ?? 0) >= MAX_NOTES_PER_RECORD ? (
-                <div
-                  className="text-sm rounded-lg border px-3 py-2"
-                  style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface-2)' }}
-                >
-                  {noteLimitReachedMessage()}
-                </div>
-              ) : (
-                <LeadNoteComposer
-                  leadId={safeLeadId}
-                  onAdded={async () => {
-                    setNoteError(null)
-                    await queryClient.invalidateQueries({ queryKey: ['lead', safeLeadId] })
-                    await queryClient.invalidateQueries({
-                      queryKey: ['lead-notes', safeLeadId],
-                    })
-                  }}
-                  onError={(msg) => setNoteError(msg)}
-                />
-              )
+              <LeadNoteComposer
+                leadId={safeLeadId}
+                onAdded={async () => {
+                  setNoteError(null)
+                  await queryClient.invalidateQueries({ queryKey: ['lead', safeLeadId] })
+                  await queryClient.invalidateQueries({
+                    queryKey: ['lead-notes', safeLeadId],
+                  })
+                }}
+                onError={(msg) => setNoteError(msg)}
+              />
             ) : null}
           </div>
         </div>

@@ -129,7 +129,6 @@ export async function listUpcomingJobs() {
     .eq('owner_id', ownerId)
     .eq('status', 'Scheduled')
     .order('scheduled_date', { ascending: true })
-    .limit(25)
 
   if (error) throw error
   return (data ?? []) as unknown as Array<
@@ -231,6 +230,18 @@ export type CreateJobInput = {
   reminder_at?: Date | string | null
 }
 
+export type CreateManualJobInput = {
+  customer_id: string
+  scheduled_date: Date | string
+  notes?: string | null
+  is_recurring?: boolean
+  recurrence_unit?: JobRecurrenceUnit | null
+  reminder_at?: Date | string | null
+  quote_price_amount?: number
+  quote_price_currency?: string
+  quote_description?: string | null
+}
+
 export async function createJobFromQuote(input: CreateJobInput) {
   if (!supabase) throw new Error('Supabase client not configured')
   const ownerId = await getUserId()
@@ -270,6 +281,50 @@ export async function createJobFromQuote(input: CreateJobInput) {
 
   if (error) throw error
   return data as unknown as { id: string; status: JobStatus }
+}
+
+export async function createManualJobForCustomer(input: CreateManualJobInput) {
+  if (!supabase) throw new Error('Supabase client not configured')
+  const ownerId = await getUserId()
+
+  const { data: customer, error: customerErr } = await supabase
+    .from('customers')
+    .select('id,name,primary_email,primary_phone')
+    .eq('owner_id', ownerId)
+    .eq('id', input.customer_id)
+    .single()
+  if (customerErr) throw customerErr
+
+  const nowIso = new Date().toISOString()
+  const { data: quote, error: quoteErr } = await supabase
+    .from('quotes')
+    .insert({
+      owner_id: ownerId,
+      lead_id: null,
+      customer_id: input.customer_id,
+      recipient_name: (customer as any).name ?? 'Customer',
+      recipient_email: (customer as any).primary_email ?? null,
+      recipient_phone: (customer as any).primary_phone ?? null,
+      status: 'Won',
+      won_at: nowIso,
+      price_amount: Number(input.quote_price_amount ?? 0),
+      price_currency: input.quote_price_currency ?? 'USD',
+      description: input.quote_description?.trim() ? input.quote_description.trim() : null,
+    })
+    .select('id')
+    .single()
+  if (quoteErr) throw quoteErr
+
+  return createJobFromQuote({
+    customer_id: input.customer_id,
+    lead_id: null,
+    quote_id: (quote as any).id as string,
+    scheduled_date: input.scheduled_date,
+    notes: input.notes ?? null,
+    is_recurring: input.is_recurring ?? false,
+    recurrence_unit: input.is_recurring ? input.recurrence_unit ?? 'weekly' : null,
+    reminder_at: input.reminder_at ?? null,
+  })
 }
 
 export type CompleteJobInput = {

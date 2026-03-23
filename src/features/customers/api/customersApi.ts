@@ -1,9 +1,7 @@
 import type { Database } from '../../../lib/supabase.types'
 import {
   isMissingNotesTitleColumnError,
-  MAX_NOTES_PER_RECORD,
   normalizeCustomerNoteRow,
-  noteLimitReachedMessage,
 } from '../../../lib/noteDbCompat'
 import { supabase } from '../../../lib/supabaseClient'
 import {
@@ -378,16 +376,6 @@ export async function getCustomerNoteById(customerId: string, noteId: string) {
 export async function addCustomerNote(customerId: string, input: CreateCustomerNoteInput) {
   if (!supabase) throw new Error('Supabase client not configured')
   const ownerId = await getUserId()
-
-  const { count: existing, error: countError } = await supabase
-    .from('customer_notes')
-    .select('id', { count: 'exact', head: true })
-    .eq('customer_id', customerId)
-
-  if (countError) throw countError
-  if ((existing ?? 0) >= MAX_NOTES_PER_RECORD) {
-    throw new Error(noteLimitReachedMessage())
-  }
 
   const occurred =
     input.occurred_at instanceof Date
