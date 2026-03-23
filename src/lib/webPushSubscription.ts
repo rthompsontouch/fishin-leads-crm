@@ -1,9 +1,18 @@
 import { upsertMyPushSubscription } from '../features/notifications/api/notificationsApi'
 
 function urlBase64ToUint8Array(base64String: string) {
+  // Some env setups accidentally include quotes. Strip them to keep base64url valid.
+  const cleaned = base64String.trim().replace(/^"+|"+$/g, '')
+
   // base64url -> base64
-  const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
-  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
+  if (!/^[A-Za-z0-9_-]+$/.test(cleaned)) {
+    throw new Error(
+      'VAPID public key is not valid base64url. Ensure it has no quotes/newlines and matches VITE_VAPID_PUBLIC_KEY exactly from .env.',
+    )
+  }
+
+  const padding = '='.repeat((4 - (cleaned.length % 4)) % 4)
+  const base64 = (cleaned + padding).replace(/-/g, '+').replace(/_/g, '/')
 
   const rawData = atob(base64)
   const outputArray = new Uint8Array(rawData.length)
@@ -24,6 +33,11 @@ export async function ensureWebPushSubscribed() {
 
   const vapidPublicKey = (import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined)?.trim()
   if (!vapidPublicKey) throw new Error('Missing VITE_VAPID_PUBLIC_KEY')
+  const vapidKeyInfo = {
+    len: vapidPublicKey.length,
+    head: vapidPublicKey.slice(0, 10),
+    tail: vapidPublicKey.slice(-10),
+  }
 
   const permission = await Notification.requestPermission()
   if (permission !== 'granted') {
@@ -87,6 +101,7 @@ export async function ensureWebPushSubscribed() {
       secureContext: window.isSecureContext,
       href: window.location.href,
       swState,
+      vapidKeyInfo,
     })
     throw new Error(
       `Push subscribe failed (${name}). ${msg}\nsecureContext=${String(
