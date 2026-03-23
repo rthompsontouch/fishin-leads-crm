@@ -84,6 +84,7 @@ export async function ensureWebPushSubscribed() {
   }
 
   const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey)
+  const appServerKeyLen = applicationServerKey.byteLength
 
   let subscription: PushSubscription
   try {
@@ -106,7 +107,7 @@ export async function ensureWebPushSubscribed() {
     throw new Error(
       `Push subscribe failed (${name}). ${msg}\nsecureContext=${String(
         window.isSecureContext,
-      )} swState=${String(swState)} url=${window.location.href}`,
+      )} swState=${String(swState)}\nurl=${window.location.href}\nappServerKeyLen=${appServerKeyLen}\nvapidKey=len:${vapidKeyInfo.len} head:${vapidKeyInfo.head} tail:${vapidKeyInfo.tail}`,
     )
   }
 
