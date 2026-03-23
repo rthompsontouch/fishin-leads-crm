@@ -55,7 +55,7 @@ async function getUserId() {
 
 export type UpdateMyProfileInput = {
   company_name: string
-  tier: ProfileRow['tier']
+  tier?: ProfileRow['tier']
   /** When set, stored as `display_name` instead of deriving from first/last name. */
   display_name?: string | null
   first_name?: string | null
@@ -88,7 +88,6 @@ export async function updateMyProfile(input: UpdateMyProfileInput): Promise<Prof
   const row: Record<string, unknown> = {
     id: userId,
     company_name: input.company_name.trim(),
-    tier: input.tier,
     first_name: firstName,
     last_name: lastName,
     phone,
@@ -96,6 +95,9 @@ export async function updateMyProfile(input: UpdateMyProfileInput): Promise<Prof
     company_size: companySize,
     website,
     display_name: displayName,
+  }
+  if (input.tier !== undefined) {
+    row.tier = input.tier
   }
   if (input.company_logo_path !== undefined) {
     row.company_logo_path = input.company_logo_path

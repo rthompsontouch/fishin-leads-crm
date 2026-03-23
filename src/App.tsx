@@ -18,6 +18,7 @@ import CustomerCreatePage from './pages/CustomerCreatePage'
 import CustomerDetailsPage from './pages/CustomerDetailsPage'
 import CustomerNotePage from './pages/CustomerNotePage'
 import JobDetailsPage from './pages/JobDetailsPage'
+import JobsPage from './pages/JobsPage'
 import SettingsPage from './pages/SettingsPage'
 import OnboardingPage from './pages/OnboardingPage'
 
@@ -70,6 +71,7 @@ export default function App() {
         <Route path="customers/new" element={<CustomerCreatePage />} />
         <Route path="customers/:customerId/notes/:noteId" element={<CustomerNotePage />} />
         <Route path="customers/:customerId" element={<CustomerDetailsPage />} />
+        <Route path="jobs" element={<JobsPage />} />
         <Route path="jobs/:jobId" element={<JobDetailsPage />} />
         <Route path="integrations" element={<Navigate to="/integrations/leads" replace />} />
         <Route path="integrations/leads" element={<LeadIntegrationsPage />} />

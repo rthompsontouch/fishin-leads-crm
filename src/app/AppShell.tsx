@@ -8,6 +8,7 @@ import {
   Blocks,
   ChevronDown,
   ChevronRight,
+  ClipboardList,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -46,6 +47,12 @@ const topNavItems: Array<{
     label: 'Customers',
     icon: Users,
     iconColorClass: 'text-emerald-500',
+  },
+  {
+    href: '/jobs',
+    label: 'Jobs',
+    icon: ClipboardList,
+    iconColorClass: 'text-orange-500',
   },
 ]
 

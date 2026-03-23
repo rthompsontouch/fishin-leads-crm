@@ -36,6 +36,7 @@ export type JobWithQuoteSummary = JobRow & {
     price_currency: string
     description: string | null
   } | null
+  customer: { id: string; name: string } | null
 }
 
 async function getUserId() {
@@ -173,11 +174,46 @@ export async function listJobsByCustomer(customerId: string) {
         'created_at',
         'updated_at',
         'quote:quotes(id,price_amount,price_currency,description)',
+        'customer:customers(id,name)',
       ].join(','),
     )
     .eq('owner_id', ownerId)
     .eq('customer_id', customerId)
     .eq('status', 'Scheduled')
+    .order('scheduled_date', { ascending: true })
+
+  if (error) throw error
+  return (data ?? []) as unknown as JobWithQuoteSummary[]
+}
+
+export async function listJobs() {
+  if (!supabase) throw new Error('Supabase client not configured')
+  const ownerId = await getUserId()
+
+  const { data, error } = await supabase
+    .from('jobs')
+    .select(
+      [
+        'id',
+        'owner_id',
+        'lead_id',
+        'quote_id',
+        'customer_id',
+        'status',
+        'scheduled_date',
+        'notes',
+        'is_recurring',
+        'recurrence_unit',
+        'reminder_at',
+        'reminder_sent_at',
+        'last_completed_at',
+        'created_at',
+        'updated_at',
+        'quote:quotes(id,price_amount,price_currency,description)',
+        'customer:customers(id,name)',
+      ].join(','),
+    )
+    .eq('owner_id', ownerId)
     .order('scheduled_date', { ascending: true })
 
   if (error) throw error

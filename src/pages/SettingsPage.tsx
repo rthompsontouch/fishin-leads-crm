@@ -3,7 +3,6 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
-import type { ProfileRow } from '../features/account/api/accountApi'
 import {
   changeMyEmail,
   changeMyPassword,
@@ -20,9 +19,6 @@ import FormFieldError from '../components/FormFieldError'
 import { formatErrorForUser, useAppMessages } from '../context/AppMessagesContext'
 import { ensureWebPushSubscribed } from '../lib/webPushSubscription'
 import { getHasMyPushSubscription } from '../features/notifications/api/notificationsApi'
-
-const tierValues = ['Freemium', 'Basic', 'Advanced', 'Enterprise'] as const
-type TierValue = (typeof tierValues)[number]
 
 const emptyToNull = (v: string | null | undefined) => {
   if (v === null || v === undefined) return null
@@ -91,7 +87,6 @@ export default function SettingsPage() {
   const accountSchema = useMemo(() => {
     return z.object({
       company_name: z.string().min(1, 'Company name is required.'),
-      tier: z.enum(tierValues),
 
       first_name: z.string().optional().or(z.literal('')),
       last_name: z.string().optional().or(z.literal('')),
@@ -108,7 +103,6 @@ export default function SettingsPage() {
     resolver: zodResolver(accountSchema),
     defaultValues: {
       company_name: profile?.company_name ?? '',
-      tier: (profile?.tier ?? 'Freemium') as TierValue,
       first_name: profile?.first_name ?? '',
       last_name: profile?.last_name ?? '',
       phone: profile?.phone ?? '',
@@ -122,7 +116,6 @@ export default function SettingsPage() {
     if (!profile) return
     accountForm.reset({
       company_name: profile.company_name ?? '',
-      tier: (profile.tier ?? 'Freemium') as TierValue,
       first_name: profile.first_name ?? '',
       last_name: profile.last_name ?? '',
       phone: profile.phone ?? '',
@@ -166,7 +159,6 @@ export default function SettingsPage() {
   async function handleSaveAccount(values: AccountValues) {
     const payload = {
       company_name: values.company_name,
-      tier: values.tier as ProfileRow['tier'],
       first_name: emptyToNull(values.first_name),
       last_name: emptyToNull(values.last_name),
       phone: emptyToNull(values.phone),
@@ -357,17 +349,12 @@ export default function SettingsPage() {
 
               <label className="flex flex-col gap-1 text-sm">
                 Tier
-                <select
-                  className="rounded-md border px-3 py-2 outline-none"
+                <input
+                  disabled
+                  value={profile?.tier ?? 'Freemium'}
+                  className="rounded-md border px-3 py-2 outline-none opacity-80 disabled:cursor-not-allowed"
                   style={{ borderColor: 'var(--color-border)' }}
-                  {...accountForm.register('tier')}
-                >
-                  {tierValues.map((t) => (
-                    <option key={t} value={t}>
-                      {t}
-                    </option>
-                  ))}
-                </select>
+                />
               </label>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

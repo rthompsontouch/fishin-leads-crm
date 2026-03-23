@@ -1,8 +1,6 @@
 begin;
 
--- Auto-dispatch queued lead push events to the Edge Function without requiring
--- a manually created Dashboard webhook.
--- NOTE: Function auth is disabled for lead-webpush in supabase/config.toml.
+-- Ensure the lead push dispatch trigger exists after lead_push_events table creation.
 do $$
 begin
   if to_regclass('public.lead_push_events') is not null then
