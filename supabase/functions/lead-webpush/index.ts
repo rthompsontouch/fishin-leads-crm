@@ -29,11 +29,25 @@ type DatabaseWebhookPayload = {
   record?: LeadPushEventRecord
 }
 
-function json(data: unknown, status = 200, headers: Record<string, string> = {}) {
+/** Browser calls from the CRM origin need CORS; DB webhooks do not send Origin. */
+function corsHeadersFor(req: Request): Record<string, string> {
+  const origin = req.headers.get('Origin')
+  const allowOrigin = origin && origin.length > 0 ? origin : '*'
+  return {
+    'Access-Control-Allow-Origin': allowOrigin,
+    'Access-Control-Allow-Headers':
+      'authorization, x-client-info, apikey, content-type, x-supabase-authorization',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    Vary: 'Origin',
+  }
+}
+
+function json(req: Request, data: unknown, status = 200, headers: Record<string, string> = {}) {
   return new Response(JSON.stringify(data), {
     status,
     headers: {
       'Content-Type': 'application/json; charset=utf-8',
+      ...corsHeadersFor(req),
       ...headers,
     },
   })
@@ -69,27 +83,34 @@ function leadPreview(lead: {
 }
 
 serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, {
+      status: 204,
+      headers: corsHeadersFor(req),
+    })
+  }
+
   if (req.method !== 'POST') {
-    return json({ ok: false, error: { code: 'METHOD_NOT_ALLOWED' } }, 405)
+    return json(req, { ok: false, error: { code: 'METHOD_NOT_ALLOWED' } }, 405)
   }
 
   try {
     const payload = (await req.json()) as DatabaseWebhookPayload
     const record = payload.record
     if (!record?.owner_id || !record.lead_id) {
-      return json({ ok: false, error: { code: 'BAD_PAYLOAD', message: 'Missing owner_id or lead_id.' } }, 400)
+      return json(req, { ok: false, error: { code: 'BAD_PAYLOAD', message: 'Missing owner_id or lead_id.' } }, 400)
     }
 
     const vapidKeysJson = Deno.env.get('VAPID_KEYS_JSON')
     const contactEmail = Deno.env.get('VAPID_CONTACT_EMAIL') ?? 'admin@example.com'
     if (!vapidKeysJson) {
-      return json({ ok: false, error: { code: 'MISSING_VAPID_KEYS_JSON' } }, 500)
+      return json(req, { ok: false, error: { code: 'MISSING_VAPID_KEYS_JSON' } }, 500)
     }
 
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
     const supabaseUrl = Deno.env.get('SUPABASE_URL')
     if (!serviceRoleKey || !supabaseUrl) {
-      return json({ ok: false, error: { code: 'MISSING_SUPABASE_CONFIG' } }, 500)
+      return json(req, { ok: false, error: { code: 'MISSING_SUPABASE_CONFIG' } }, 500)
     }
 
     const supabase = createClient(supabaseUrl, serviceRoleKey, {
@@ -116,7 +137,7 @@ serve(async (req) => {
 
     const subscriptions = subs ?? []
     if (subscriptions.length === 0) {
-      return json({ ok: true, sent: 0 })
+      return json(req, { ok: true, sent: 0 })
     }
 
     // Load lead for better message text.
@@ -154,9 +175,9 @@ serve(async (req) => {
       }
     }
 
-    return json({ ok: true, sent })
+    return json(req, { ok: true, sent })
   } catch (e) {
-    return json({ ok: false, error: { code: 'INTERNAL_ERROR', message: String((e as Error).message ?? e) } }, 500)
+    return json(req, { ok: false, error: { code: 'INTERNAL_ERROR', message: String((e as Error).message ?? e) } }, 500)
   }
 })
 
