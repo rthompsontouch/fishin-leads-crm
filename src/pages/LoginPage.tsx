@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useLocation, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 
 const loginSchema = z.object({
@@ -15,14 +15,18 @@ type LoginFormValues = z.infer<typeof loginSchema>
 export default function LoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
+  const [searchParams] = useSearchParams()
   const redirectTo =
     (location.state as { from?: string } | undefined)?.from ?? '/dashboard'
+  const passwordResetOk = searchParams.get('reset') === 'success'
 
   const [formError, setFormError] = useState<string | null>(null)
 
+  const emailFromSignup = searchParams.get('email') ?? ''
+
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { email: '', password: '' },
+    defaultValues: { email: emailFromSignup, password: '' },
     mode: 'onSubmit',
   })
 
@@ -70,6 +74,18 @@ export default function LoginPage() {
           </p>
         </div>
 
+        {passwordResetOk ? (
+          <div
+            className="rounded-md border p-3 mb-4 text-sm"
+            style={{
+              borderColor: 'var(--color-success)',
+              background: 'color-mix(in srgb, var(--color-success) 10%, transparent)',
+            }}
+          >
+            Password updated. Sign in with your new password.
+          </div>
+        ) : null}
+
         {formError ? (
           <div
             className="rounded-md border p-3 mb-4 text-sm"
@@ -110,6 +126,7 @@ export default function LoginPage() {
             Password
             <input
               type="password"
+              autoComplete="current-password"
               className="rounded-md border px-3 py-2 outline-none"
               style={{ borderColor: 'var(--color-border)' }}
               {...form.register('password')}
@@ -120,6 +137,15 @@ export default function LoginPage() {
               </span>
             ) : null}
           </label>
+
+          <div className="flex justify-end -mt-1">
+            <Link
+              to="/forgot-password"
+              className="text-xs font-semibold text-[color:var(--color-primary)] hover:underline"
+            >
+              Forgot password?
+            </Link>
+          </div>
 
           <button
             type="submit"

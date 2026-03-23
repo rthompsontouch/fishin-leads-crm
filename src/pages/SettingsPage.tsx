@@ -14,6 +14,12 @@ import {
   uploadMyCompanyLogo,
 } from '../features/account/api/accountApi'
 import { supabase } from '../lib/supabaseClient'
+import { strongNewPasswordSchema } from '../lib/passwordStrength'
+import PasswordChangeFields, { type PasswordChangeFormFields } from '../components/PasswordChangeFields'
+import FormFieldError from '../components/FormFieldError'
+import { formatErrorForUser, useAppMessages } from '../context/AppMessagesContext'
+import { ensureWebPushSubscribed } from '../lib/webPushSubscription'
+import { getHasMyPushSubscription } from '../features/notifications/api/notificationsApi'
 
 const tierValues = ['Freemium', 'Basic', 'Advanced', 'Enterprise'] as const
 type TierValue = (typeof tierValues)[number]
@@ -24,11 +30,22 @@ const emptyToNull = (v: string | null | undefined) => {
   return t ? t : null
 }
 
+const changePasswordSchema = z
+  .object({
+    current_password: z.string().min(1, 'Current password is required.'),
+    new_password: strongNewPasswordSchema,
+    confirm_password: z.string().min(1, 'Confirm your new password.'),
+  })
+  .refine((d) => d.new_password === d.confirm_password, {
+    message: 'Passwords do not match.',
+    path: ['confirm_password'],
+  })
+
 export default function SettingsPage() {
   const queryClient = useQueryClient()
-  const [actionError, setActionError] = useState<string | null>(null)
-  const [actionSuccess, setActionSuccess] = useState<string | null>(null)
+  const { toastError, toastSuccess } = useAppMessages()
   const [logoBusy, setLogoBusy] = useState(false)
+  const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined
 
   const {
     data: profile,
@@ -49,6 +66,23 @@ export default function SettingsPage() {
     },
     enabled: true,
   }).data
+
+  const {
+    data: hasPushSubscription,
+    isPending: isPushSubscriptionPending,
+  } = useQuery({
+    queryKey: ['my-push-subscription'],
+    queryFn: async () => {
+      try {
+        if (!vapidPublicKey) return false
+        return await getHasMyPushSubscription()
+      } catch {
+        // Table/policies might not be migrated yet; fail open.
+        return false
+      }
+    },
+    enabled: Boolean(vapidPublicKey),
+  })
 
   const accountSchema = useMemo(() => {
     return z.object({
@@ -116,27 +150,8 @@ export default function SettingsPage() {
     emailForm.setValue('new_email', currentEmail)
   }, [currentEmail, emailForm])
 
-  const passwordSchema = useMemo(() => {
-    return z.object({
-      current_password: z.string().min(1, 'Current password is required.'),
-      new_password: z.string().min(6, 'New password must be at least 6 characters.'),
-      confirm_password: z.string().min(6, 'Confirm password is required.'),
-    })
-  }, [])
-
-  const passwordResolver = useMemo(() => {
-    return zodResolver(
-      passwordSchema.refine((v) => v.new_password === v.confirm_password, {
-        message: 'Passwords do not match.',
-        path: ['confirm_password'],
-      }),
-    )
-  }, [passwordSchema])
-
-  type PasswordValues = z.infer<typeof passwordSchema>
-
-  const passwordForm = useForm<PasswordValues>({
-    resolver: passwordResolver,
+  const passwordForm = useForm<PasswordChangeFormFields>({
+    resolver: zodResolver(changePasswordSchema),
     defaultValues: {
       current_password: '',
       new_password: '',
@@ -145,9 +160,6 @@ export default function SettingsPage() {
   })
 
   async function handleSaveAccount(values: AccountValues) {
-    setActionError(null)
-    setActionSuccess(null)
-
     const payload = {
       company_name: values.company_name,
       tier: values.tier as ProfileRow['tier'],
@@ -161,26 +173,30 @@ export default function SettingsPage() {
 
     await updateMyProfile(payload)
     await queryClient.invalidateQueries({ queryKey: ['my-profile'] })
-    setActionSuccess('Account details saved.')
+    toastSuccess('Account details saved.')
   }
 
   async function handleChangeEmail(values: EmailValues) {
-    setActionError(null)
-    setActionSuccess(null)
-
     if (!currentEmail) throw new Error('Current email not available.')
 
     await changeMyEmail(values.current_password_for_email, values.new_email)
     await queryClient.invalidateQueries({ queryKey: ['my-profile'] })
     await queryClient.invalidateQueries({ queryKey: ['my-auth-email'] })
-    setActionSuccess('Email change requested. If confirmation is required, check your inbox.')
+    emailForm.reset({
+      new_email: values.new_email,
+      current_password_for_email: '',
+    })
+    toastSuccess('Email change requested. If confirmation is required, check your inbox.')
   }
 
-  async function handleChangePassword(values: PasswordValues) {
-    setActionError(null)
-    setActionSuccess(null)
+  async function handleChangePassword(values: PasswordChangeFormFields) {
     await changeMyPassword(values.current_password, values.new_password)
-    setActionSuccess('Password updated.')
+    passwordForm.reset({
+      current_password: '',
+      new_password: '',
+      confirm_password: '',
+    })
+    toastSuccess('Password updated.')
   }
 
   const companyLogoPreview = useMemo(
@@ -191,30 +207,26 @@ export default function SettingsPage() {
   async function handleLogoFileChange(fileList: FileList | null) {
     const file = fileList?.[0]
     if (!file) return
-    setActionError(null)
-    setActionSuccess(null)
     setLogoBusy(true)
     try {
       await uploadMyCompanyLogo(file)
       await queryClient.invalidateQueries({ queryKey: ['my-profile'] })
-      setActionSuccess('Company logo updated.')
+      toastSuccess('Company logo updated.')
     } catch (e) {
-      setActionError(String((e as Error).message ?? e))
+      toastError(formatErrorForUser(e))
     } finally {
       setLogoBusy(false)
     }
   }
 
   async function handleRemoveLogo() {
-    setActionError(null)
-    setActionSuccess(null)
     setLogoBusy(true)
     try {
       await clearMyCompanyLogo()
       await queryClient.invalidateQueries({ queryKey: ['my-profile'] })
-      setActionSuccess('Company logo removed.')
+      toastSuccess('Company logo removed.')
     } catch (e) {
-      setActionError(String((e as Error).message ?? e))
+      toastError(formatErrorForUser(e))
     } finally {
       setLogoBusy(false)
     }
@@ -232,18 +244,6 @@ export default function SettingsPage() {
       {profileError ? (
         <div className="rounded-xl border p-4" style={{ borderColor: 'var(--color-danger)' }}>
           Failed to load profile: {String((profileError as Error).message)}
-        </div>
-      ) : null}
-
-      {actionError ? (
-        <div className="rounded-xl border p-4" style={{ borderColor: 'var(--color-danger)' }}>
-          {actionError}
-        </div>
-      ) : null}
-
-      {actionSuccess ? (
-        <div className="rounded-xl border p-4" style={{ borderColor: 'var(--color-success)' }}>
-          {actionSuccess}
         </div>
       ) : null}
 
@@ -311,7 +311,7 @@ export default function SettingsPage() {
                 try {
                   await handleSaveAccount(v)
                 } catch (e) {
-                  setActionError(String((e as Error).message ?? e))
+                  toastError(formatErrorForUser(e))
                 }
               })}
             >
@@ -322,11 +322,7 @@ export default function SettingsPage() {
                   style={{ borderColor: 'var(--color-border)' }}
                   {...accountForm.register('company_name')}
                 />
-                {accountForm.formState.errors.company_name ? (
-                  <span className="text-xs" style={{ color: 'var(--color-danger)' }}>
-                    {accountForm.formState.errors.company_name.message}
-                  </span>
-                ) : null}
+                <FormFieldError message={accountForm.formState.errors.company_name?.message} />
               </label>
 
               <label className="flex flex-col gap-1 text-sm">
@@ -420,13 +416,43 @@ export default function SettingsPage() {
             Current email: <span style={{ fontWeight: 700 }}>{currentEmail ?? '—'}</span>
           </div>
 
+          <div className="rounded-lg border p-4 mb-6" style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface-1)' }}>
+            <div className="text-sm font-semibold">Notifications (Web Push)</div>
+            <div className="text-xs opacity-70 mt-1">
+              {vapidPublicKey
+                ? hasPushSubscription
+                  ? 'Enabled. You will get new-lead alerts even when the app is closed.'
+                  : 'Enable to receive push notifications for new leads.'
+                : 'Set VITE_VAPID_PUBLIC_KEY in your env to enable web push.'}
+            </div>
+
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <button
+                type="button"
+                disabled={isPushSubscriptionPending || !vapidPublicKey || hasPushSubscription}
+                onClick={async () => {
+                  try {
+                    await ensureWebPushSubscribed()
+                    toastSuccess('Notifications enabled.')
+                    await queryClient.invalidateQueries({ queryKey: ['my-push-subscription'] })
+                  } catch (e) {
+                    toastError(formatErrorForUser(e))
+                  }
+                }}
+                className="rounded-md px-3 py-2 text-sm font-semibold text-white cursor-pointer transition-colors duration-150 bg-[color:var(--color-primary)] hover:bg-[color:var(--color-primary-dark)] disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {hasPushSubscription ? 'Enabled' : isPushSubscriptionPending ? 'Enabling…' : 'Enable notifications'}
+              </button>
+            </div>
+          </div>
+
           <form
-            className="grid grid-cols-1 gap-4 mb-6"
+            className="grid grid-cols-1 gap-4 mb-8"
             onSubmit={emailForm.handleSubmit(async (v) => {
               try {
                 await handleChangeEmail(v)
               } catch (e) {
-                setActionError(String((e as Error).message ?? e))
+                toastError(formatErrorForUser(e))
               }
             })}
           >
@@ -439,16 +465,19 @@ export default function SettingsPage() {
                 style={{ borderColor: 'var(--color-border)' }}
                 {...emailForm.register('new_email')}
               />
+              <FormFieldError message={emailForm.formState.errors.new_email?.message} />
             </label>
 
             <label className="flex flex-col gap-1 text-sm">
               Current password
               <input
                 type="password"
+                autoComplete="current-password"
                 className="rounded-md border px-3 py-2 outline-none"
                 style={{ borderColor: 'var(--color-border)' }}
                 {...emailForm.register('current_password_for_email')}
               />
+              <FormFieldError message={emailForm.formState.errors.current_password_for_email?.message} />
             </label>
 
             <div className="flex justify-end">
@@ -468,49 +497,23 @@ export default function SettingsPage() {
               try {
                 await handleChangePassword(v)
               } catch (e) {
-                setActionError(String((e as Error).message ?? e))
+                toastError(formatErrorForUser(e))
               }
             })}
           >
             <div className="text-sm font-semibold">Change password</div>
 
-            <label className="flex flex-col gap-1 text-sm">
-              Current password
-              <input
-                type="password"
-                className="rounded-md border px-3 py-2 outline-none"
-                style={{ borderColor: 'var(--color-border)' }}
-                {...passwordForm.register('current_password')}
-              />
-            </label>
+            <PasswordChangeFields
+              register={passwordForm.register}
+              watch={passwordForm.watch}
+              setValue={passwordForm.setValue}
+              errors={passwordForm.formState.errors}
+              trigger={passwordForm.trigger}
+              getValues={passwordForm.getValues}
+              disabled={passwordForm.formState.isSubmitting}
+            />
 
-            <label className="flex flex-col gap-1 text-sm">
-              New password
-              <input
-                type="password"
-                className="rounded-md border px-3 py-2 outline-none"
-                style={{ borderColor: 'var(--color-border)' }}
-                {...passwordForm.register('new_password')}
-              />
-            </label>
-
-            <label className="flex flex-col gap-1 text-sm">
-              Confirm new password
-              <input
-                type="password"
-                className="rounded-md border px-3 py-2 outline-none"
-                style={{ borderColor: 'var(--color-border)' }}
-                {...passwordForm.register('confirm_password')}
-              />
-            </label>
-
-            {passwordForm.formState.errors.confirm_password ? (
-              <span className="text-xs" style={{ color: 'var(--color-danger)' }}>
-                {passwordForm.formState.errors.confirm_password.message}
-              </span>
-            ) : null}
-
-            <div className="flex justify-end">
+            <div className="flex justify-end pt-2">
               <button
                 type="submit"
                 className="rounded-md px-4 py-2 text-sm font-semibold text-white cursor-pointer transition-colors duration-150 bg-[color:var(--color-primary)] hover:bg-[color:var(--color-primary-dark)] disabled:opacity-60 disabled:cursor-not-allowed"
@@ -525,4 +528,3 @@ export default function SettingsPage() {
     </div>
   )
 }
-

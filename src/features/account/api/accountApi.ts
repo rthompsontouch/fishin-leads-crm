@@ -56,6 +56,8 @@ async function getUserId() {
 export type UpdateMyProfileInput = {
   company_name: string
   tier: ProfileRow['tier']
+  /** When set, stored as `display_name` instead of deriving from first/last name. */
+  display_name?: string | null
   first_name?: string | null
   last_name?: string | null
   phone?: string | null
@@ -78,7 +80,10 @@ export async function updateMyProfile(input: UpdateMyProfileInput): Promise<Prof
   const companySize = normalizeStringToNull(input.company_size)
   const website = normalizeStringToNull(input.website)
 
-  const displayName = [firstName, lastName].filter(Boolean).join(' ') || input.company_name
+  const displayName =
+    input.display_name !== undefined
+      ? (input.display_name?.trim() || input.company_name.trim())
+      : [firstName, lastName].filter(Boolean).join(' ') || input.company_name
 
   const row: Record<string, unknown> = {
     id: userId,
@@ -99,12 +104,39 @@ export async function updateMyProfile(input: UpdateMyProfileInput): Promise<Prof
   const { data, error } = await supabase
     .from('profiles')
     .upsert(row, { onConflict: 'id' })
-    .select(
-      'id,company_name,tier,first_name,last_name,phone,industry,company_size,website,display_name,company_logo_path,created_at,updated_at',
-    )
+    .select('*')
     .single<ProfileRow>()
 
   if (error) throw error
+  return data
+}
+
+/** Marks first-run onboarding as finished (profile + integration + sample lead). */
+export async function completeOnboarding(): Promise<ProfileRow> {
+  if (!supabase) throw new Error('Supabase client not configured')
+
+  const { userId } = await getUserId()
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .update({ onboarding_completed_at: new Date().toISOString() })
+    .eq('id', userId)
+    .select('*')
+    .single<ProfileRow>()
+
+  if (error) {
+    const msg = error.message ?? ''
+    if (
+      msg.includes('onboarding_completed_at') ||
+      msg.includes('schema cache') ||
+      error.code === 'PGRST204'
+    ) {
+      throw new Error(
+        'Database is missing column profiles.onboarding_completed_at. Apply migrations: open Supabase → SQL Editor and run the SQL in SUPABASE.md under “Add onboarding column”, or run `supabase db push` from the CRM project folder.',
+      )
+    }
+    throw error
+  }
   return data
 }
 

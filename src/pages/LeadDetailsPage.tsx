@@ -17,6 +17,11 @@ import {
   listLeadNotes,
   updateLead,
 } from '../features/leads/api/leadsApi'
+import {
+  listQuotesByLead,
+  sendQuote,
+  type QuoteWithDetails,
+} from '../features/quotes/api/quotesApi'
 import ContactActionButtons from '../components/ContactActionButtons'
 import {
   OverviewBlock,
@@ -27,6 +32,8 @@ import {
   websiteHref,
 } from '../components/entityOverview'
 import LeadForm from '../features/leads/components/LeadForm'
+import CreateQuoteModal from '../features/quotes/components/CreateQuoteModal'
+import AcceptQuoteJobModal from '../features/quotes/components/AcceptQuoteJobModal'
 
 export default function LeadDetailsPage() {
   const { leadId } = useParams()
@@ -62,6 +69,16 @@ export default function LeadDetailsPage() {
     enabled: Boolean(safeLeadId) && isValidUuid,
   })
 
+  const {
+    data: quotes,
+    isPending: isQuotesPending,
+    error: quotesError,
+  } = useQuery({
+    queryKey: ['quotes', safeLeadId],
+    queryFn: () => listQuotesByLead(safeLeadId),
+    enabled: Boolean(safeLeadId) && isValidUuid,
+  })
+
   // Safety: sometimes `/leads/new` can be treated as `:leadId = "new"` by the router.
   // Redirect so the create page renders correctly.
   if (shouldRedirectToCreate) {
@@ -72,6 +89,8 @@ export default function LeadDetailsPage() {
   const [noteError, setNoteError] = useState<string | null>(null)
   const [noteSearch, setNoteSearch] = useState('')
   const [saving, setSaving] = useState(false)
+  const [createQuoteOpen, setCreateQuoteOpen] = useState(false)
+  const [acceptQuote, setAcceptQuote] = useState<QuoteWithDetails | null>(null)
 
   const filteredNotes = useMemo(() => {
     if (!notes) return []
@@ -157,7 +176,7 @@ export default function LeadDetailsPage() {
             onClick={async () => {
               if (!lead) return
               const ok = window.confirm(
-                'Convert this lead into a customer? A customer will be created, your latest lead notes (up to 4) will carry over, and this lead will be removed from the leads list.',
+                'Convert this lead into a customer? A customer will be created, your latest lead notes (up to 4) will carry over, and this lead will be linked to the customer.',
               )
               if (!ok) return
               setSaving(true)
@@ -243,6 +262,13 @@ export default function LeadDetailsPage() {
                           <span className="opacity-50">—</span>
                         )}
                       </OverviewRow>
+                      <OverviewRow label="Message / details">
+                        {(lead as any).details?.trim() ? (
+                          <span className="whitespace-pre-wrap">{(lead as any).details}</span>
+                        ) : (
+                          <span className="opacity-50">—</span>
+                        )}
+                      </OverviewRow>
                     </OverviewBlock>
 
                     <OverviewBlock title="Pipeline">
@@ -292,7 +318,8 @@ export default function LeadDetailsPage() {
                         email: lead.email ?? null,
                         phone: lead.phone ?? null,
                         source: lead.source ?? null,
-                        status: lead.status,
+                        details: (lead as any).details ?? null,
+                        status: lead.status as any,
                       }}
                       onSubmit={async (values) => {
                         setSaving(true)
@@ -309,7 +336,8 @@ export default function LeadDetailsPage() {
                             email: values.email ?? null,
                             phone: values.phone ?? null,
                             source: values.source ?? null,
-                            status: values.status,
+                            details: values.details ?? null,
+                            status: values.status as any,
                           })
                           await queryClient.invalidateQueries({
                             queryKey: ['lead', safeLeadId],
@@ -324,6 +352,135 @@ export default function LeadDetailsPage() {
                     />
                   </div>
                 )}
+
+                {lead && !isLeadPending ? (
+                  <div
+                    className="rounded-xl border p-5"
+                    style={{ borderColor: 'var(--color-border)' }}
+                  >
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-3">
+                      <div className="text-sm font-semibold">Quotes</div>
+                      <button
+                        type="button"
+                        className="rounded-md px-3 py-2 text-sm font-semibold text-white cursor-pointer transition-colors duration-150 bg-[color:var(--color-primary)] hover:bg-[color:var(--color-primary-dark)] disabled:opacity-60 disabled:cursor-not-allowed"
+                        onClick={() => setCreateQuoteOpen(true)}
+                        disabled={isQuotesPending}
+                      >
+                        Create Quote
+                      </button>
+                    </div>
+
+                    {quotesError ? (
+                      <div className="text-sm" style={{ color: 'var(--color-danger)' }}>
+                        Failed to load quotes: {String((quotesError as Error).message)}
+                      </div>
+                    ) : isQuotesPending ? (
+                      <div className="text-sm opacity-80">Loading quotes…</div>
+                    ) : quotes && quotes.length > 0 ? (
+                      <div className="flex flex-col gap-3">
+                        {quotes.map((q) => {
+                          const quoteTone =
+                            q.status === 'Won'
+                              ? 'success'
+                              : q.status === 'Lost'
+                                ? 'danger'
+                                : q.status === 'Sent'
+                                  ? 'info'
+                                  : 'neutral'
+
+                          return (
+                            <div
+                              key={q.id}
+                              className="rounded-lg border p-4"
+                              style={{ borderColor: 'var(--color-border)' }}
+                            >
+                              <div className="flex flex-col gap-2">
+                                <div className="flex items-start justify-between gap-4">
+                                  <div>
+                                    <div className="text-xs opacity-70">Quote</div>
+                                    <div className="text-sm font-semibold mt-0.5">
+                                      {q.price_currency} {q.price_amount}
+                                    </div>
+                                  </div>
+                                  <OverviewPill tone={quoteTone as any}>{q.status}</OverviewPill>
+                                </div>
+
+                                <div className="text-sm opacity-85">
+                                  {q.description?.trim() ? q.description : <span className="opacity-50">No description</span>}
+                                </div>
+
+                                <div className="text-xs opacity-70">
+                                  {q.line_items.length > 0 ? `${q.line_items.length} line item(s)` : 'No line items'} •{' '}
+                                  {q.attachments.length > 0 ? `${q.attachments.length} photo(s)` : 'No photos'}
+                                </div>
+
+                                <div className="flex flex-wrap gap-2 pt-1">
+                                  {q.status === 'Draft' ? (
+                                    <button
+                                      type="button"
+                                      className="rounded-md px-3 py-2 text-sm font-semibold text-white cursor-pointer transition-colors duration-150 bg-[color:var(--color-primary)] hover:bg-[color:var(--color-primary-dark)] disabled:opacity-60 disabled:cursor-not-allowed"
+                                      onClick={async () => {
+                                        try {
+                                          await sendQuote(q.id)
+                                          await queryClient.invalidateQueries({ queryKey: ['quotes', safeLeadId], exact: false })
+                                        } catch (e) {
+                                          alert(String((e as Error).message ?? e))
+                                        }
+                                      }}
+                                    >
+                                      Send Quote
+                                    </button>
+                                  ) : null}
+
+                                  {q.status === 'Sent' ? (
+                                    <button
+                                      type="button"
+                                      className="rounded-md px-3 py-2 text-sm font-semibold text-white cursor-pointer transition-colors duration-150 bg-[color:var(--color-primary)] hover:bg-[color:var(--color-primary-dark)] disabled:opacity-60 disabled:cursor-not-allowed"
+                                      onClick={() => setAcceptQuote(q)}
+                                    >
+                                      Customer accepted → Won & Create Job
+                                    </button>
+                                  ) : null}
+
+                                  {q.status === 'Won' ? (
+                                    <div className="text-sm opacity-80 font-semibold">Job created</div>
+                                  ) : null}
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    ) : (
+                      <div className="text-sm opacity-80">No quotes yet. Create one to start the pipeline.</div>
+                    )}
+                  </div>
+                ) : null}
+
+                {lead ? (
+                  <CreateQuoteModal
+                    open={createQuoteOpen}
+                    lead={lead as any}
+                    onClose={() => setCreateQuoteOpen(false)}
+                    onCreated={async () => {
+                      await queryClient.invalidateQueries({ queryKey: ['quotes', safeLeadId], exact: false })
+                      await queryClient.invalidateQueries({ queryKey: ['lead', safeLeadId], exact: false })
+                    }}
+                  />
+                ) : null}
+
+                {acceptQuote && lead ? (
+                  <AcceptQuoteJobModal
+                    open={true}
+                    lead={lead}
+                    quote={acceptQuote}
+                    onClose={() => setAcceptQuote(null)}
+                    onAccepted={async () => {
+                      await queryClient.invalidateQueries({ queryKey: ['quotes', safeLeadId], exact: false })
+                      await queryClient.invalidateQueries({ queryKey: ['lead', safeLeadId], exact: false })
+                    }}
+                  />
+                ) : null}
 
                 {noteError ? (
                   <div className="text-sm mt-4 pt-4 border-t" style={{ color: 'var(--color-danger)', borderColor: 'var(--color-border)' }}>

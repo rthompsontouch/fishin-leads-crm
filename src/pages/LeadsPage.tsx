@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Download } from 'lucide-react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import TablePagination, { DEFAULT_PAGE_SIZE } from '../components/TablePagination'
 import ExportDataModal from '../components/ExportDataModal'
 import { listLeads } from '../features/leads/api/leadsApi'
-import { runLeadCsvDownload } from '../lib/exportLeadsCsv'
+import { LEAD_EXPORT_FIELDS, runLeadExport } from '../lib/exportLeadsCsv'
 
 export default function LeadsPage() {
   const navigate = useNavigate()
@@ -91,9 +92,19 @@ export default function LeadsPage() {
           </p>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            className="rounded-md px-3 py-2 text-sm font-semibold border cursor-pointer transition-colors duration-150 border-[color:var(--color-border)] bg-transparent text-[color:var(--color-foreground)] hover:bg-[color:var(--color-surface-2)] inline-flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={() => setExportOpen(true)}
+            disabled={isPending}
+            title="Export leads matching your filters and search"
+          >
+            <Download size={16} className="shrink-0 opacity-90" aria-hidden />
+            Export
+          </button>
           <Link
-            to="/integrations"
+            to="/integrations/leads"
             className="rounded-md px-3 py-2 text-sm font-semibold border cursor-pointer transition-colors duration-150 border-[color:var(--color-border)] bg-transparent text-[color:var(--color-foreground)] hover:bg-[color:var(--color-surface-2)] inline-flex items-center justify-center no-underline"
           >
             Add via Integrations
@@ -189,11 +200,13 @@ export default function LeadsPage() {
                 const created = new Date(lead.created_at).toLocaleDateString()
 
                 const statusColor =
-                  lead.status === 'Qualified'
+                  (lead.status as any) === 'Won'
                     ? 'var(--color-success)'
-                    : lead.status === 'New'
-                      ? 'var(--color-info)'
-                      : 'var(--color-accent)'
+                    : (lead.status as any) === 'Lost'
+                      ? 'var(--color-danger)'
+                      : (lead.status as any) === 'New'
+                        ? 'var(--color-info)'
+                        : 'var(--color-accent)'
 
                 return (
                   <Link
@@ -251,9 +264,10 @@ export default function LeadsPage() {
       <ExportDataModal
         open={exportOpen}
         onClose={() => setExportOpen(false)}
-        title="Export leads (CSV)"
+        title="Export leads"
         rowCount={totalFiltered}
-        onRunExport={(opts) => runLeadCsvDownload(filtered, opts)}
+        exportFields={LEAD_EXPORT_FIELDS}
+        onRunExport={(opts) => runLeadExport(filtered, opts)}
       />
     </div>
   )

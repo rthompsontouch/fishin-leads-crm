@@ -109,9 +109,12 @@ export function OverviewPill({
 
 export function leadStatusTone(
   status: string,
-): 'neutral' | 'success' | 'info' | 'warning' {
-  if (status === 'Qualified') return 'success'
+): 'neutral' | 'success' | 'info' | 'warning' | 'danger' {
+  if (status === 'Won') return 'success'
+  if (status === 'Lost') return 'danger'
+  if (status === 'Quoted') return 'info'
   if (status === 'New') return 'info'
+  if (status === 'Contacted') return 'neutral'
   return 'warning'
 }
 

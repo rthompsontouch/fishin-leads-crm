@@ -1,73 +1,38 @@
-# React + TypeScript + Vite
+# Fishin Leads CRM
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React + TypeScript + Vite CRM for leads, customers, integrations (website lead capture), and onboarding.
 
-Currently, two official plugins are available:
+## Quick start (local)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
+cp .env.example .env
+# Edit .env: VITE_SUPABASE_URL + VITE_SUPABASE_PUBLISHABLE_KEY
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+See **[`SUPABASE.md`](./SUPABASE.md)** for linking the project, migrations (`supabase db push`), and Auth URLs.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Deploy (Vercel)
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+See **[`DEPLOY.md`](./DEPLOY.md)** for required env vars, what **not** to put in Vercel, and why **`VITE_WEBSITE_LEAD_CAPTURE_URL` is optional** (default webhook URL is derived from `VITE_SUPABASE_URL`).
+
+## Scripts
+
+| Command | Description |
+|---------|-------------|
+| `npm run dev` | Dev server |
+| `npm run build` | Production build |
+| `npm run preview` | Preview production build |
+
+## Project layout (high level)
+
+- `src/app/` — shell / navigation  
+- `src/features/` — API + feature modules (account, leads, integrations, …)  
+- `src/pages/` — route screens  
+- `supabase/migrations/` — database + storage SQL  
+- `supabase/functions/website-lead-capture/` — public lead ingestion Edge Function  
+
+---
+
+*Original Vite template notes were replaced by this project README.*

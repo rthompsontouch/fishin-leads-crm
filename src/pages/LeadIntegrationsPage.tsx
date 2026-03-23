@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import IntegrationCreateForm from '../features/integrations/components/IntegrationCreateForm'
 import ApiKeyRevealModal from '../features/integrations/components/ApiKeyRevealModal'
@@ -13,7 +13,7 @@ import {
   type CreateIntegrationInput,
 } from '../features/integrations/api/integrationsApi'
 
-export default function IntegrationsPage() {
+export default function LeadIntegrationsPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const webhookUrl = getWebhookUrl()
@@ -59,10 +59,27 @@ export default function IntegrationsPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold">Integrations</h1>
+        <div className="text-xs opacity-70">
+          <Link to="/integrations/leads" className="hover:underline">
+            Integrations
+          </Link>
+          <span className="opacity-60"> / </span>
+          <span className="opacity-95">Website &amp; leads</span>
+        </div>
+        <h1 className="text-2xl font-semibold mt-1">Website &amp; lead capture</h1>
         <p className="text-sm opacity-80 mt-1">
-          Create secure API keys for your website forms. Leads will be inserted into your
-          CRM automatically.
+          Connect your marketing site or forms with a secure webhook. Each integration gets its own key,
+          default lead status, and source label.
+        </p>
+        <p className="text-sm opacity-70 mt-2">
+          Need to call the CRM from your own app code? Use{' '}
+          <Link
+            to="/integrations/api"
+            className="font-semibold text-[color:var(--color-primary)] hover:underline"
+          >
+            REST API integration
+          </Link>
+          .
         </p>
       </div>
 
@@ -70,10 +87,13 @@ export default function IntegrationsPage() {
         <div className="rounded-xl border p-6" style={{ borderColor: 'var(--color-border)' }}>
           <div className="text-sm font-semibold mb-2">1) Webhook endpoint</div>
           <div className="text-xs opacity-70 mb-3">
-            Your marketing site will call this endpoint and include header `x-api-key`.
+            Your marketing site will call this endpoint and include header <code className="text-xs">x-api-key</code>.
           </div>
 
-          <div className="rounded-lg border p-3 mb-3" style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface-1)' }}>
+          <div
+            className="rounded-lg border p-3 mb-3"
+            style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface-1)' }}
+          >
             <div className="text-xs opacity-70 mb-1">Webhook URL</div>
             <div className="break-all text-sm font-mono">{webhookUrl || 'Not configured'}</div>
           </div>
@@ -126,17 +146,19 @@ export default function IntegrationsPage() {
                 aria-label={`View integration ${i.name}`}
                 className="grid grid-cols-6 items-center p-3 border-b cursor-pointer transition-colors duration-150 hover:bg-[color:var(--color-surface-2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[color:var(--color-primary)]"
                 style={{ borderColor: 'var(--color-border)' }}
-                onClick={() => navigate(`/integrations/${i.id}`)}
+                onClick={() => navigate(`/integrations/leads/${i.id}`)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
                     e.preventDefault()
-                    navigate(`/integrations/${i.id}`)
+                    navigate(`/integrations/leads/${i.id}`)
                   }
                 }}
               >
                 <div className="col-span-2">
                   <div className="text-sm font-semibold">{i.name}</div>
-                  <div className="text-xs opacity-70">Created {new Date(i.created_at).toLocaleDateString()}</div>
+                  <div className="text-xs opacity-70">
+                    Created {new Date(i.created_at).toLocaleDateString()}
+                  </div>
                 </div>
                 <div className="text-sm opacity-90 truncate">{i.source_label}</div>
                 <div className="text-sm opacity-90 truncate">{i.default_status}</div>
@@ -190,4 +212,3 @@ export default function IntegrationsPage() {
     </div>
   )
 }
-

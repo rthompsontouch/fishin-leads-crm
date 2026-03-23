@@ -1,11 +1,13 @@
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { useQuery } from '@tanstack/react-query'
 import { getCompanyLogoPublicUrl, getMyProfile } from '../features/account/api/accountApi'
 import type { ComponentType } from 'react'
 import {
   Blocks,
+  ChevronDown,
+  ChevronRight,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -26,11 +28,10 @@ import {
 
 type NavIcon = ComponentType<{ size?: number; className?: string }>
 
-const navItems: Array<{
+const topNavItems: Array<{
   href: string
   label: string
   icon: NavIcon
-  /** Tailwind text color for the icon when the row is not active */
   iconColorClass: string
 }> = [
   {
@@ -46,19 +47,30 @@ const navItems: Array<{
     icon: Users,
     iconColorClass: 'text-emerald-500',
   },
-  {
-    href: '/integrations',
-    label: 'Integrations',
-    icon: PlugZap,
-    iconColorClass: 'text-amber-500',
-  },
-  {
-    href: '/settings',
-    label: 'Settings',
-    icon: Settings,
-    iconColorClass: 'text-slate-500',
-  },
 ]
+
+const settingsNavItem = {
+  href: '/settings',
+  label: 'Settings',
+  icon: Settings,
+  iconColorClass: 'text-slate-500',
+} as const
+
+const integrationSubNav = [
+  { href: '/integrations/leads', label: 'Website & leads' },
+  { href: '/integrations/api', label: 'REST API' },
+] as const
+
+function isIntegrationArea(pathname: string) {
+  return pathname.startsWith('/integrations')
+}
+
+function isIntegrationSubActive(href: string, pathname: string) {
+  if (href === '/integrations/leads') {
+    return pathname === '/integrations/leads' || pathname.startsWith('/integrations/leads/')
+  }
+  return pathname === href || pathname.startsWith(`${href}/`)
+}
 
 /** Extra URLs to try after manifest + bundled (uses BASE_URL for subpath deploys). */
 const EXTRA_BRAND_NAMES = [
@@ -123,6 +135,20 @@ function SidebarBrandMark() {
 export default function AppShell() {
   const location = useLocation()
   const navigate = useNavigate()
+
+  /** Integrations sub-nav: toggle manually; open when entering /integrations*, close when leaving. */
+  const [integrationsOpen, setIntegrationsOpen] = useState(() =>
+    isIntegrationArea(location.pathname),
+  )
+  const integrationsPathRef = useRef(location.pathname)
+  useEffect(() => {
+    const prev = integrationsPathRef.current
+    integrationsPathRef.current = location.pathname
+    const nowInt = isIntegrationArea(location.pathname)
+    const prevInt = isIntegrationArea(prev)
+    if (nowInt && !prevInt) setIntegrationsOpen(true)
+    if (!nowInt && prevInt) setIntegrationsOpen(false)
+  }, [location.pathname])
 
   const [isCollapsed, setIsCollapsed] = useState(() => {
     try {
@@ -225,11 +251,10 @@ export default function AppShell() {
           </div>
 
           <nav className="flex flex-col gap-2 flex-1 min-h-0">
-            {navItems.map((item) => {
+            {topNavItems.map((item) => {
               const isActive =
                 location.pathname === item.href ||
-                (item.href !== '/dashboard' &&
-                  location.pathname.startsWith(item.href))
+                (item.href !== '/dashboard' && location.pathname.startsWith(item.href))
 
               const Icon = item.icon
 
@@ -264,6 +289,115 @@ export default function AppShell() {
                 </Link>
               )
             })}
+
+            {isCollapsed ? (
+              <Link
+                to="/integrations/leads"
+                className={[
+                  'cursor-pointer w-full rounded-md py-2 flex items-center justify-center h-12 transition-colors',
+                  isIntegrationArea(location.pathname)
+                    ? 'bg-[color:var(--color-primary)] text-white'
+                    : 'hover:bg-[color:var(--color-surface-2)]',
+                ].join(' ')}
+                title="Integrations"
+              >
+                <PlugZap
+                  size={22}
+                  className={[
+                    'shrink-0 transition-colors',
+                    isIntegrationArea(location.pathname) ? 'text-white' : 'text-amber-500',
+                  ].join(' ')}
+                />
+              </Link>
+            ) : (
+              <div className="flex flex-col gap-1 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setIntegrationsOpen((v) => !v)}
+                  className={[
+                    'cursor-pointer w-full rounded-md py-2 flex items-center gap-2 px-3 text-left transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-primary)]',
+                    isIntegrationArea(location.pathname)
+                      ? 'bg-[color:var(--color-primary)] text-white'
+                      : 'hover:bg-[color:var(--color-surface-2)]',
+                  ].join(' ')}
+                  aria-expanded={integrationsOpen}
+                >
+                  <PlugZap
+                    size={18}
+                    className={[
+                      'shrink-0 transition-colors',
+                      isIntegrationArea(location.pathname) ? 'text-white' : 'text-amber-500',
+                    ].join(' ')}
+                  />
+                  <span className="font-medium text-sm flex-1">Integrations</span>
+                  {integrationsOpen ? (
+                    <ChevronDown size={16} className="shrink-0 opacity-80" />
+                  ) : (
+                    <ChevronRight size={16} className="shrink-0 opacity-80" />
+                  )}
+                </button>
+                {integrationsOpen ? (
+                  <div
+                    className="ml-3 pl-3 flex flex-col gap-0.5 border-l"
+                    style={{ borderColor: 'var(--color-border)' }}
+                  >
+                    {integrationSubNav.map((sub) => {
+                      const subActive = isIntegrationSubActive(sub.href, location.pathname)
+                      return (
+                        <Link
+                          key={sub.href}
+                          to={sub.href}
+                          className={[
+                            'cursor-pointer rounded-md py-1.5 px-2 text-sm font-medium transition-colors',
+                            subActive
+                              ? 'bg-[color:var(--color-primary)] text-white'
+                              : 'hover:bg-[color:var(--color-surface-2)]',
+                          ].join(' ')}
+                        >
+                          {sub.label}
+                        </Link>
+                      )
+                    })}
+                  </div>
+                ) : null}
+              </div>
+            )}
+
+            {(() => {
+              const item = settingsNavItem
+              const isActive = location.pathname === item.href || location.pathname.startsWith(item.href)
+              const Icon = item.icon
+              return (
+                <Link
+                  key={item.href}
+                  to={item.href}
+                  className={[
+                    'cursor-pointer w-full rounded-md py-2 flex items-center transition-colors',
+                    isCollapsed ? 'justify-center px-0 h-12' : 'justify-start px-3',
+                    isActive
+                      ? 'bg-[color:var(--color-primary)] text-white'
+                      : 'hover:bg-[color:var(--color-surface-2)]',
+                  ].join(' ')}
+                  title={isCollapsed ? item.label : undefined}
+                >
+                  <Icon
+                    size={isCollapsed ? 22 : 18}
+                    className={[
+                      'shrink-0 transition-colors',
+                      isActive ? 'text-white' : item.iconColorClass,
+                    ].join(' ')}
+                  />
+                  <span
+                    className={[
+                      'ml-3 font-medium text-sm',
+                      isCollapsed ? 'hidden' : 'inline',
+                    ].join(' ')}
+                  >
+                    {item.label}
+                  </span>
+                </Link>
+              )
+            })()}
           </nav>
 
           <Link
@@ -280,39 +414,17 @@ export default function AppShell() {
             title={isCollapsed ? 'Account settings' : undefined}
           >
             <div className={isCollapsed ? 'h-full w-full flex items-center justify-center' : 'p-3'}>
-              <div className={isCollapsed ? 'flex justify-center' : ''}>
-                {isCollapsed ? (
-                  companyLogoUrl ? (
-                    <img
-                      src={companyLogoUrl}
-                      alt=""
-                      className="h-8 w-8 shrink-0 rounded object-contain"
-                    />
-                  ) : (
-                    <User size={22} className="shrink-0" />
-                  )
-                ) : companyLogoUrl ? (
+              {isCollapsed ? (
+                companyLogoUrl ? (
                   <img
                     src={companyLogoUrl}
                     alt=""
-                    className={
-                      isCollapsed
-                        ? 'h-11 w-11 shrink-0 rounded-lg object-contain border'
-                        : 'h-11 w-11 shrink-0 rounded-lg object-contain border'
-                    }
-                    style={{ borderColor: 'var(--color-border)' }}
+                    className="h-8 w-8 shrink-0 rounded object-contain"
                   />
-                ) : isCollapsed ? (
-                  <div
-                    className="h-11 w-11 shrink-0 rounded-lg border flex items-center justify-center font-bold"
-                    style={{ borderColor: 'var(--color-border)' }}
-                  >
-                    {(companyLabel[0] ?? '').toUpperCase()}
-                  </div>
-                ) : null}
-              </div>
-
-              {!isCollapsed ? (
+                ) : (
+                  <User size={22} className="shrink-0" />
+                )
+              ) : (
                 <>
                   <div className="text-[10px] font-bold uppercase tracking-wider opacity-70 mb-2">
                     Account
@@ -325,7 +437,14 @@ export default function AppShell() {
                         className="h-11 w-11 shrink-0 rounded-lg object-contain border"
                         style={{ borderColor: 'var(--color-border)' }}
                       />
-                    ) : null}
+                    ) : (
+                      <div
+                        className="h-11 w-11 shrink-0 rounded-lg border flex items-center justify-center text-sm font-bold"
+                        style={{ borderColor: 'var(--color-border)' }}
+                      >
+                        {(companyLabel[0] ?? '').toUpperCase()}
+                      </div>
+                    )}
 
                     <div className="min-w-0 flex-1">
                       {isProfilePending ? (
@@ -352,7 +471,7 @@ export default function AppShell() {
                     </div>
                   </div>
                 </>
-              ) : null}
+              )}
             </div>
           </Link>
 
@@ -395,7 +514,7 @@ export default function AppShell() {
           <Menu size={18} />
         </button>
 
-        <main className="flex-1 overflow-y-auto px-6 pb-6 pt-1 max-md:pt-12 crm-scrollbar min-w-0">
+        <main className="flex-1 overflow-y-auto px-6 pb-6 pt-1 max-md:pt-[4.5rem] crm-scrollbar min-w-0">
           <Outlet />
         </main>
       </div>
@@ -434,11 +553,10 @@ export default function AppShell() {
             </div>
 
             <nav className="p-5 flex flex-col gap-2 flex-1 overflow-y-auto">
-              {navItems.map((item) => {
+              {topNavItems.map((item) => {
                 const isActive =
                   location.pathname === item.href ||
-                  (item.href !== '/dashboard' &&
-                    location.pathname.startsWith(item.href))
+                  (item.href !== '/dashboard' && location.pathname.startsWith(item.href))
                 const Icon = item.icon
 
                 return (
@@ -464,6 +582,88 @@ export default function AppShell() {
                   </Link>
                 )
               })}
+
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIntegrationsOpen((v) => !v)}
+                  className={[
+                    'cursor-pointer w-full rounded-md px-3 py-3 text-sm font-medium flex items-center gap-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-primary)]',
+                    isIntegrationArea(location.pathname)
+                      ? 'bg-[color:var(--color-primary)] text-white'
+                      : 'hover:bg-[color:var(--color-surface-2)]',
+                  ].join(' ')}
+                  aria-expanded={integrationsOpen}
+                >
+                  <PlugZap
+                    size={18}
+                    className={[
+                      'shrink-0 transition-colors',
+                      isIntegrationArea(location.pathname) ? 'text-white' : 'text-amber-500',
+                    ].join(' ')}
+                  />
+                  <span className="flex-1">Integrations</span>
+                  {integrationsOpen ? (
+                    <ChevronDown size={18} className="shrink-0 opacity-80" />
+                  ) : (
+                    <ChevronRight size={18} className="shrink-0 opacity-80" />
+                  )}
+                </button>
+                {integrationsOpen ? (
+                  <div
+                    className="flex flex-col gap-0.5 ml-2 pl-3 border-l mt-1"
+                    style={{ borderColor: 'var(--color-border)' }}
+                  >
+                    {integrationSubNav.map((sub) => {
+                      const subActive = isIntegrationSubActive(sub.href, location.pathname)
+                      return (
+                        <Link
+                          key={sub.href}
+                          to={sub.href}
+                          onClick={() => setIsMobileMenuOpen(false)}
+                          className={[
+                            'cursor-pointer rounded-md px-3 py-2.5 text-sm font-medium',
+                            subActive
+                              ? 'bg-[color:var(--color-primary)] text-white'
+                              : 'hover:bg-[color:var(--color-surface-2)]',
+                          ].join(' ')}
+                        >
+                          {sub.label}
+                        </Link>
+                      )
+                    })}
+                  </div>
+                ) : null}
+              </div>
+
+              {(() => {
+                const item = settingsNavItem
+                const isActive =
+                  location.pathname === item.href || location.pathname.startsWith(item.href)
+                const Icon = item.icon
+                return (
+                  <Link
+                    key={item.href}
+                    to={item.href}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className={[
+                      'cursor-pointer rounded-md px-3 py-3 text-sm font-medium flex items-center gap-3',
+                      isActive
+                        ? 'bg-[color:var(--color-primary)] text-white'
+                        : 'hover:bg-[color:var(--color-surface-2)]',
+                    ].join(' ')}
+                  >
+                    <Icon
+                      size={18}
+                      className={[
+                        'shrink-0 transition-colors',
+                        isActive ? 'text-white' : item.iconColorClass,
+                      ].join(' ')}
+                    />
+                    <span>{item.label}</span>
+                  </Link>
+                )
+              })()}
             </nav>
 
             <div className="p-5 pb-6 flex flex-col gap-4">

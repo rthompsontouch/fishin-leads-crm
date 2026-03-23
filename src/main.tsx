@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import './assets/brand/registerBrandHead'
 import './index.css'
 import App from './App.tsx'
+import { AppMessagesProvider } from './context/AppMessagesContext'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -19,9 +20,11 @@ const queryClient = new QueryClient({
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
+      <AppMessagesProvider>
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
+      </AppMessagesProvider>
     </QueryClientProvider>
   </StrictMode>,
 )

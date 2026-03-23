@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import type { CreateIntegrationInput } from '../api/integrationsApi'
 
-const statusValues = ['New', 'Contacted', 'Qualified', 'Unqualified', 'ClosedWon', 'ClosedLost'] as const
+const statusValues = ['New', 'Contacted', 'Quoted', 'Won', 'Lost'] as const
 
 const schema = z.object({
   name: z.string().min(1, 'Name is required.'),

@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Download } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import TablePagination, { DEFAULT_PAGE_SIZE } from '../components/TablePagination'
 import ExportDataModal from '../components/ExportDataModal'
 import { listCustomers } from '../features/customers/api/customersApi'
-import { runCustomerCsvDownload } from '../lib/exportCustomersCsv'
+import { CUSTOMER_EXPORT_FIELDS, runCustomerExport } from '../lib/exportCustomersCsv'
 
 export default function CustomersPage() {
   const navigate = useNavigate()
@@ -64,7 +65,17 @@ export default function CustomersPage() {
           </p>
         </div>
 
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            className="rounded-md px-3 py-2 text-sm font-semibold border cursor-pointer transition-colors duration-150 border-[color:var(--color-border)] bg-transparent text-[color:var(--color-foreground)] hover:bg-[color:var(--color-surface-2)] inline-flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={() => setExportOpen(true)}
+            disabled={isPending}
+            title="Export customers matching your search"
+          >
+            <Download size={16} className="shrink-0 opacity-90" aria-hidden />
+            Export
+          </button>
           <button
             type="button"
             className="rounded-md px-3 py-2 text-sm font-semibold text-white cursor-pointer transition-colors duration-150 bg-[color:var(--color-primary)] hover:bg-[color:var(--color-primary-dark)] disabled:opacity-60 disabled:cursor-not-allowed"
@@ -157,9 +168,10 @@ export default function CustomersPage() {
       <ExportDataModal
         open={exportOpen}
         onClose={() => setExportOpen(false)}
-        title="Export customers (CSV)"
+        title="Export customers"
         rowCount={totalFiltered}
-        onRunExport={(opts) => runCustomerCsvDownload(filtered, opts)}
+        exportFields={CUSTOMER_EXPORT_FIELDS}
+        onRunExport={(opts) => runCustomerExport(filtered, opts)}
       />
     </div>
   )

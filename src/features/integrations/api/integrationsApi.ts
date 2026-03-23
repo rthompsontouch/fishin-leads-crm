@@ -127,8 +127,11 @@ export async function deleteIntegration(integrationId: string) {
 }
 
 export function getWebhookUrl() {
+  const override = import.meta.env.VITE_WEBSITE_LEAD_CAPTURE_URL as string | undefined
+  const trimmed = override?.trim()
+  if (trimmed) return trimmed
   const baseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined
   if (!baseUrl) return ''
-  return `${baseUrl}/functions/v1/website-lead-capture`
+  return `${baseUrl.replace(/\/$/, '')}/functions/v1/website-lead-capture`
 }
 

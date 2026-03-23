@@ -55,8 +55,8 @@ export default function IntegrationDetailsPage() {
         <div className="text-sm" style={{ color: 'var(--color-danger)' }}>
           Invalid integration link.
         </div>
-        <Link to="/integrations" className="text-sm font-semibold underline w-fit">
-          Back to integrations
+        <Link to="/integrations/leads" className="text-sm font-semibold underline w-fit">
+          Back to website &amp; leads
         </Link>
       </div>
     )
@@ -72,8 +72,8 @@ export default function IntegrationDetailsPage() {
         <div className="text-sm" style={{ color: 'var(--color-danger)' }}>
           {String((error as Error).message)}
         </div>
-        <Link to="/integrations" className="text-sm font-semibold underline w-fit">
-          Back to integrations
+        <Link to="/integrations/leads" className="text-sm font-semibold underline w-fit">
+          Back to website &amp; leads
         </Link>
       </div>
     )
@@ -83,8 +83,8 @@ export default function IntegrationDetailsPage() {
     return (
       <div className="flex flex-col gap-4">
         <div className="text-sm opacity-80">Integration not found.</div>
-        <Link to="/integrations" className="text-sm font-semibold underline w-fit">
-          Back to integrations
+        <Link to="/integrations/leads" className="text-sm font-semibold underline w-fit">
+          Back to website &amp; leads
         </Link>
       </div>
     )
@@ -106,8 +106,10 @@ export default function IntegrationDetailsPage() {
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <div className="text-xs opacity-70">
-            <Link to="/integrations" className="hover:underline">
-              Integrations
+            <span className="opacity-80">Integrations</span>
+            <span className="opacity-60"> / </span>
+            <Link to="/integrations/leads" className="hover:underline">
+              Website &amp; leads
             </Link>
             <span className="opacity-60"> / </span>
             <span className="opacity-95">{integration.name}</span>
@@ -134,7 +136,7 @@ export default function IntegrationDetailsPage() {
               if (!ok) return
               await deleteIntegration(integration.id)
               await queryClient.invalidateQueries({ queryKey: ['integrations'] })
-              navigate('/integrations')
+              navigate('/integrations/leads')
             }}
           >
             Delete

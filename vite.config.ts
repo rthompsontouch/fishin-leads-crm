@@ -59,4 +59,9 @@ function brandManifestPlugin(root: string) {
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), brandManifestPlugin(__dirname)],
+  // Web Push requires a secure context. Enable HTTPS in local dev so
+  // Settings -> Enable notifications works on localhost too.
+  server: {
+    https: true,
+  },
 })

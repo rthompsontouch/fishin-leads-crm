@@ -6,6 +6,11 @@ import {
   noteLimitReachedMessage,
 } from '../../../lib/noteDbCompat'
 import { supabase } from '../../../lib/supabaseClient'
+import {
+  buildServiceImageStoragePath,
+  SERVICE_IMAGE_SIGNED_URL_TTL_SEC,
+  SERVICE_IMAGES_BUCKET,
+} from '../../../lib/serviceImageStorage'
 
 export type CustomerRow = Database['public']['Tables']['customers']['Row']
 export type CustomerNoteRow = Database['public']['Tables']['customer_notes']['Row']
@@ -79,6 +84,7 @@ export type CreateServiceEntryInput = {
   description: string
   price_amount?: number | null
   price_currency?: string
+  job_id?: string | null
 }
 
 type ServiceEntryWithAttachments = ServiceEntryRow & {
@@ -124,6 +130,60 @@ export async function listCustomers() {
 
   if (error) throw error
   return data
+}
+
+export async function findCustomersByEmailOrPhone(input: { email?: string | null; phone?: string | null }) {
+  if (!supabase) throw new Error('Supabase client not configured')
+  const ownerId = await getUserId()
+
+  const email = input.email?.trim() ? input.email.trim().toLowerCase() : null
+  const phoneRaw = input.phone?.trim() ? input.phone.trim() : null
+  const phoneNoSpaces = phoneRaw ? phoneRaw.replace(/\s+/g, '') : null
+
+  let query = supabase
+    .from('customers')
+    .select(
+      [
+        'id',
+        'name',
+        'primary_email',
+        'primary_phone',
+        'email',
+        'phone',
+        'industry',
+        'company_size',
+        'website',
+        'status',
+        'created_at',
+      ].join(','),
+    )
+    .eq('owner_id', ownerId)
+
+  const ors: string[] = []
+  if (email) {
+    // Note: ilike allows case-insensitive matching. Passing the exact email string works for exact match.
+    ors.push(`primary_email.ilike.${email}`)
+    ors.push(`email.ilike.${email}`)
+  }
+  if (phoneRaw) {
+    ors.push(`primary_phone.eq.${phoneRaw}`)
+    ors.push(`phone.eq.${phoneRaw}`)
+  }
+  if (phoneNoSpaces && phoneNoSpaces !== phoneRaw) {
+    ors.push(`primary_phone.eq.${phoneNoSpaces}`)
+    ors.push(`phone.eq.${phoneNoSpaces}`)
+  }
+
+  if (ors.length > 0) {
+    query = query.or(ors.join(','))
+  } else {
+    // If neither email nor phone provided, return empty.
+    return [] as CustomerRow[]
+  }
+
+  const { data, error } = await query.order('created_at', { ascending: false }).returns<CustomerRow[]>()
+  if (error) throw error
+  return data ?? []
 }
 
 export async function getCustomerById(customerId: string) {
@@ -387,8 +447,12 @@ export async function listServiceEntries(customerId: string) {
       try {
         const signed = await client.storage
           .from(a.storage_bucket)
-          .createSignedUrl(a.storage_path, 60 * 60)
+          .createSignedUrl(a.storage_path, SERVICE_IMAGE_SIGNED_URL_TTL_SEC)
 
+        if (signed.error) {
+          console.warn('Signed URL failed', a.storage_path, signed.error.message)
+          return { ...a, signed_url: null }
+        }
         return { ...a, signed_url: signed.data?.signedUrl ?? null }
       } catch {
         return { ...a, signed_url: null }
@@ -431,6 +495,7 @@ export async function addServiceEntryWithImages(
     .insert({
       owner_id: ownerId,
       customer_id: customerId,
+      job_id: input.job_id ?? null,
       service_date: serviceDate.toISOString().slice(0, 10), // YYYY-MM-DD
       description: input.description,
       price_amount: input.price_amount ?? null,
@@ -442,13 +507,13 @@ export async function addServiceEntryWithImages(
   if (serviceError) throw serviceError
 
   // Upload images to Supabase Storage, then write attachment rows.
-  const bucket = 'service-images'
+  const bucket = SERVICE_IMAGES_BUCKET
 
   const uploadedAttachments: ServiceAttachmentRow[] = []
 
   for (const file of files) {
     const safeName = sanitizeFileName(file.name)
-    const storagePath = `${ownerId}/${service.id}/${Date.now()}-${safeName}`
+    const storagePath = buildServiceImageStoragePath(ownerId, service.id, safeName)
 
     const { error: uploadError } = await supabase.storage
       .from(bucket)
@@ -547,17 +612,27 @@ export async function deleteServiceEntryWithImages(serviceId: string) {
     .select(['storage_bucket', 'storage_path'].join(','))
     .eq('service_id', serviceId)
     .eq('owner_id', ownerId)
-    .returns<ServiceAttachmentRow[]>()
+    .returns<Pick<ServiceAttachmentRow, 'storage_bucket' | 'storage_path'>[]>()
 
   if (attachmentsError) throw attachmentsError
 
+  // Remove Storage objects first (paths from DB), then delete the service row (CASCADE drops attachment rows).
+  const byBucket = new Map<string, string[]>()
   for (const a of attachments ?? []) {
-    try {
-      await client.storage.from(a.storage_bucket).remove([a.storage_path])
-    } catch {
-      // best-effort
-    }
+    const list = byBucket.get(a.storage_bucket) ?? []
+    list.push(a.storage_path)
+    byBucket.set(a.storage_bucket, list)
   }
+
+  await Promise.all(
+    [...byBucket.entries()].map(async ([bucket, paths]) => {
+      if (paths.length === 0) return
+      const { error } = await client.storage.from(bucket).remove(paths)
+      if (error) {
+        console.warn('Storage remove (service entry delete):', bucket, error.message)
+      }
+    }),
+  )
 
   const { error: serviceError } = await supabase
     .from('service_entries')

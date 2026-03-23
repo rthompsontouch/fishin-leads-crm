@@ -5,7 +5,7 @@ import {
   normalizeLeadNoteRow,
   noteLimitReachedMessage,
 } from '../../../lib/noteDbCompat'
-import { addCustomerNote } from '../../customers/api/customersApi'
+import { addCustomerNote, getCustomerById } from '../../customers/api/customersApi'
 import { supabase } from '../../../lib/supabaseClient'
 
 export type LeadRow = Database['public']['Tables']['leads']['Row']
@@ -54,6 +54,7 @@ export async function listLeads(params?: ListLeadsParams) {
         'email',
         'phone',
         'source',
+        'details',
         'status',
         'last_contacted_at',
         'created_at',
@@ -89,6 +90,7 @@ export async function getLeadById(leadId: string) {
         'email',
         'phone',
         'source',
+        'details',
         'status',
         'last_contacted_at',
         'created_at',
@@ -144,6 +146,7 @@ export type CreateLeadInput = {
   email?: string | null
   phone?: string | null
   source?: string | null
+  details?: string | null
   status: LeadInsert['status']
 }
 
@@ -167,6 +170,7 @@ export async function createLead(input: CreateLeadInput) {
       email: input.email ?? null,
       phone: input.phone ?? null,
       source: input.source ?? null,
+      details: input.details ?? null,
       status: input.status,
     })
     .select(
@@ -181,6 +185,7 @@ export async function createLead(input: CreateLeadInput) {
         'email',
         'phone',
         'source',
+        'details',
         'status',
         'last_contacted_at',
         'created_at',
@@ -203,6 +208,7 @@ export type UpdateLeadInput = {
   email?: string | null
   phone?: string | null
   source?: string | null
+  details?: string | null
   status?: LeadUpdate['status']
 }
 
@@ -210,7 +216,9 @@ export async function updateLead(input: UpdateLeadInput) {
   const ownerId = await getUserId()
   if (!supabase) throw new Error('Supabase client not configured')
 
-  const patch: Partial<LeadUpdate> = {
+  // `details` may not exist in the generated `LeadUpdate` type yet (types file can lag
+  // behind migrations). Use `any` so the API remains compatible during iteration.
+  const patch: any = {
     first_name: input.first_name ?? null,
     last_name: input.last_name ?? null,
     company: input.company ?? null,
@@ -220,6 +228,7 @@ export async function updateLead(input: UpdateLeadInput) {
     email: input.email ?? null,
     phone: input.phone ?? null,
     source: input.source ?? null,
+    details: input.details ?? null,
   }
   if (input.status) patch.status = input.status
 
@@ -240,6 +249,7 @@ export async function updateLead(input: UpdateLeadInput) {
         'email',
         'phone',
         'source',
+        'details',
         'status',
         'last_contacted_at',
         'created_at',
@@ -341,8 +351,9 @@ export async function convertLeadToCustomer(leadId: string) {
     leadStatus: LeadRow['status'],
   ): CustomerRow['status'] => {
     // MVP mapping: closed deals become Active/Churned, everything else is a Prospect.
-    if (leadStatus === 'ClosedWon') return 'Active'
-    if (leadStatus === 'ClosedLost') return 'Churned'
+    const s = leadStatus as unknown as string
+    if (s === 'Won') return 'Active'
+    if (s === 'Lost') return 'Churned'
     return 'Prospect'
   }
 
@@ -422,9 +433,159 @@ export async function convertLeadToCustomer(leadId: string) {
     occurred_at: new Date(),
   })
 
-  // 3) Remove lead (cascades lead_notes); record now lives only as customer.
-  await deleteLead(leadId)
+  // 3) Link lead -> customer (keep the lead record so quote/job history stays connected).
+  await supabase
+    .from('leads')
+    .update({
+      converted_customer_id: customer.id,
+      converted_at: new Date().toISOString(),
+    })
+    .eq('id', leadId)
+    .eq('owner_id', ownerId)
 
   return customer
+}
+
+export async function mergeLeadIntoCustomer(leadId: string, customerId: string) {
+  const ownerId = await getUserId()
+  if (!supabase) throw new Error('Supabase client not configured')
+
+  const emptyToNull = (v: string | null | undefined) => {
+    if (v === null || v === undefined) return null
+    const t = v.trim()
+    return t ? t : null
+  }
+
+  const mapLeadStatusToCustomerStatus = (
+    leadStatus: LeadRow['status'],
+  ): CustomerRow['status'] => {
+    // MVP mapping: deals become Active/Churned, everything else is a Prospect.
+    const s = leadStatus as unknown as string
+    if (s === 'Won') return 'Active'
+    if (s === 'Lost') return 'Churned'
+    return 'Prospect'
+  }
+
+  const lead = await getLeadById(leadId)
+  if (!lead) throw new Error('Lead not found')
+
+  const { data: customer, error: customerErr } = await supabase
+    .from('customers')
+    .select(
+      [
+        'id',
+        'owner_id',
+        'name',
+        'primary_first_name',
+        'primary_last_name',
+        'primary_email',
+        'primary_phone',
+        'industry',
+        'company_size',
+        'website',
+        'status',
+      ].join(','),
+    )
+    .eq('owner_id', ownerId)
+    .eq('id', customerId)
+    .single<CustomerRow>()
+
+  if (customerErr) throw customerErr
+  if (!customer) throw new Error('Customer not found')
+
+  const companyName = emptyToNull(lead.company)
+  const primaryFirst = emptyToNull(lead.first_name)
+  const primaryLast = emptyToNull(lead.last_name)
+  const recipientName =
+    companyName ||
+    [primaryFirst, primaryLast].filter(Boolean).join(' ') ||
+    'Converted Customer'
+
+  const leadEmail = emptyToNull(lead.email)
+  const leadPhone = emptyToNull(lead.phone)
+
+  // Update customer fields only if empty or generic.
+  const shouldUpdateName = customer.name.trim() === '' || customer.name === 'Converted Customer'
+
+  const patch: Partial<CustomerRow> = {
+    name: shouldUpdateName ? recipientName : undefined,
+
+    primary_first_name: customer.primary_first_name ?? primaryFirst ?? undefined,
+    primary_last_name: customer.primary_last_name ?? primaryLast ?? undefined,
+    primary_email: customer.primary_email ?? leadEmail ?? undefined,
+    primary_phone: customer.primary_phone ?? leadPhone ?? undefined,
+
+    email: customer.primary_email ?? leadEmail ?? undefined,
+    phone: customer.primary_phone ?? leadPhone ?? undefined,
+
+    industry: customer.industry ?? emptyToNull(lead.industry) ?? undefined,
+    company_size: customer.company_size ?? emptyToNull(lead.company_size) ?? undefined,
+    website: customer.website ?? emptyToNull(lead.website) ?? undefined,
+
+    status: mapLeadStatusToCustomerStatus(lead.status),
+  }
+
+  const { error: updateErr } = await supabase
+    .from('customers')
+    .update(patch as any)
+    .eq('id', customerId)
+    .eq('owner_id', ownerId)
+
+  if (updateErr) throw updateErr
+
+  const { count: existingCount, error: countErr } = await supabase
+    .from('customer_notes')
+    .select('id', { count: 'exact', head: true })
+    .eq('customer_id', customerId)
+
+  if (countErr) throw countErr
+
+  const existing = existingCount ?? 0
+  const remainingSlots = Math.max(0, MAX_NOTES_PER_RECORD - existing)
+
+  // Copy most recent lead notes, leaving one slot for the conversion note when possible.
+  const leadNotes = await listLeadNotes(leadId)
+  const sorted = [...(leadNotes ?? [])].sort(
+    (a, b) =>
+      new Date(b.occurred_at).getTime() - new Date(a.occurred_at).getTime(),
+  )
+
+  const conversionNote = {
+    type: 'note' as const,
+    title: 'Lead merged into customer',
+    body: `Merged from lead: ${recipientName}`,
+    occurred_at: new Date(),
+  }
+
+  const copyLeadNotesCount = Math.max(0, remainingSlots - 1)
+  const toCopy = sorted.slice(0, copyLeadNotesCount)
+
+  for (const n of toCopy) {
+    await addCustomerNote(customerId, {
+      type: n.type,
+      title: (n.title ?? '').trim() || 'From lead',
+      body: n.body,
+      occurred_at: n.occurred_at,
+    })
+  }
+
+  if (remainingSlots > 0) {
+    await addCustomerNote(customerId, conversionNote)
+  }
+
+  // Link lead -> customer (keep the lead record).
+  await supabase
+    .from('leads')
+    .update({
+      converted_customer_id: customerId,
+      converted_at: new Date().toISOString(),
+    })
+    .eq('id', leadId)
+    .eq('owner_id', ownerId)
+
+  // Return fresh customer row (simplifies UI).
+  const updated = await getCustomerById(customerId)
+  if (!updated) throw new Error('Customer not found after merge')
+  return updated
 }
 

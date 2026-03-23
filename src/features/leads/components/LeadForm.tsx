@@ -7,10 +7,9 @@ import type { CreateLeadInput } from '../api/leadsApi'
 const leadStatusValues = [
   'New',
   'Contacted',
-  'Qualified',
-  'Unqualified',
-  'ClosedWon',
-  'ClosedLost',
+  'Quoted',
+  'Won',
+  'Lost',
 ] as const
 
 type LeadStatus = (typeof leadStatusValues)[number]
@@ -26,6 +25,7 @@ const formSchema = z
     email: z.string().optional(),
     phone: z.string().optional(),
     source: z.string().optional(),
+    details: z.string().optional(),
     status: z.enum(leadStatusValues as unknown as [string, ...string[]]),
   })
   .refine(
@@ -48,6 +48,7 @@ export type LeadFormValues = {
   email?: string | null
   phone?: string | null
   source?: string | null
+  details?: string | null
   status: CreateLeadInput['status'] | LeadStatus
 }
 
@@ -72,6 +73,7 @@ export default function LeadForm({
       email: initialValues?.email ?? '',
       phone: initialValues?.phone ?? '',
       source: initialValues?.source ?? '',
+      details: initialValues?.details ?? '',
       status: (initialValues?.status ?? 'New') as any,
     },
   })
@@ -90,6 +92,7 @@ export default function LeadForm({
       email: values.email?.trim() ? values.email.trim() : null,
       phone: values.phone?.trim() ? values.phone.trim() : null,
       source: values.source?.trim() ? values.source.trim() : null,
+      details: values.details?.trim() ? values.details.trim() : null,
       status: values.status as any,
     })
   }
@@ -192,6 +195,15 @@ export default function LeadForm({
           className="rounded-md border px-3 py-2 outline-none"
           style={{ borderColor: 'var(--color-border)' }}
           {...form.register('source')}
+        />
+      </label>
+
+      <label className="flex flex-col gap-1 text-sm md:col-span-2">
+        Message / details (optional)
+        <textarea
+          className="rounded-md border px-3 py-2 outline-none"
+          style={{ borderColor: 'var(--color-border)', minHeight: 92 }}
+          {...form.register('details')}
         />
       </label>
 

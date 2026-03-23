@@ -2,86 +2,120 @@ import type { LeadRow } from '../features/leads/api/leadsApi'
 import {
   applyMaxRows,
   chunkSlices,
+  delimiterFromPreset,
   downloadCsv,
-  rowsToCsv,
+  downloadJson,
+  rowsToDelimited,
+  sanitizeExportFilenamePart,
   sleep,
+  sortByCreatedAt,
   type FlexibleExportInput,
 } from './csvExport'
 
-const HEADERS = [
-  'id',
-  'first_name',
-  'last_name',
-  'company',
-  'email',
-  'phone',
-  'source',
-  'status',
-  'industry',
-  'company_size',
-  'website',
-  'last_contacted_at',
-  'created_at',
-] as const
+/** All exportable field ids (order = default column order). */
+export const LEAD_EXPORT_FIELDS: { id: string; label: string }[] = [
+  { id: 'id', label: 'id' },
+  { id: 'first_name', label: 'first_name' },
+  { id: 'last_name', label: 'last_name' },
+  { id: 'company', label: 'company' },
+  { id: 'email', label: 'email' },
+  { id: 'phone', label: 'phone' },
+  { id: 'source', label: 'source' },
+  { id: 'details', label: 'details' },
+  { id: 'status', label: 'status' },
+  { id: 'industry', label: 'industry' },
+  { id: 'company_size', label: 'company_size' },
+  { id: 'website', label: 'website' },
+  { id: 'last_contacted_at', label: 'last_contacted_at' },
+  { id: 'created_at', label: 'created_at' },
+]
 
-function leadRowToCells(lead: LeadRow): string[] {
-  return [
-    lead.id,
-    lead.first_name ?? '',
-    lead.last_name ?? '',
-    lead.company ?? '',
-    lead.email ?? '',
-    lead.phone ?? '',
-    lead.source ?? '',
-    lead.status ?? '',
-    lead.industry ?? '',
-    lead.company_size ?? '',
-    lead.website ?? '',
-    lead.last_contacted_at ?? '',
-    lead.created_at ?? '',
-  ]
+function leadFieldValue(lead: LeadRow, id: string): string {
+  const v = (lead as Record<string, unknown>)[id]
+  if (v == null) return ''
+  return String(v)
 }
 
-/**
- * Builds one or more CSV strings from leads (after optional limit & split).
- */
-export function buildLeadCsvExports(
-  leads: LeadRow[],
-  options: FlexibleExportInput,
-): { filename: string; csv: string }[] {
-  let data = applyMaxRows(leads, options.maxRows)
-  if (data.length === 0) {
-    return []
-  }
+function resolveLeadColumns(selectedIds: string[] | undefined): { id: string; label: string }[] {
+  const all = LEAD_EXPORT_FIELDS
+  if (!selectedIds?.length) return [...all]
+  const set = new Set(selectedIds)
+  return all.filter((f) => set.has(f.id))
+}
 
-  const rows = data.map(leadRowToCells)
+export type LeadExportFile =
+  | { kind: 'csv'; filename: string; content: string }
+  | { kind: 'json'; filename: string; data: unknown }
+
+export function buildLeadExportFiles(leads: LeadRow[], options: FlexibleExportInput): LeadExportFile[] {
+  const sorted = sortByCreatedAt(leads, options.sortOrder)
+  let data = applyMaxRows(sorted, options.maxRows)
+  if (data.length === 0) return []
+
+  const cols = resolveLeadColumns(options.columns)
+  const headers = cols.map((c) => c.label)
+  const format = options.format ?? 'csv'
   const perFile = options.rowsPerFile
+  const chunkSize =
+    perFile != null && Number.isFinite(perFile) && perFile >= 1 ? Math.floor(perFile) : data.length
+  const needsSplit = chunkSize < data.length
+  const prefix = options.filenamePrefix?.trim()
+    ? `${sanitizeExportFilenamePart(options.filenamePrefix!)}-`
+    : ''
 
-  if (
-    perFile == null ||
-    !Number.isFinite(perFile) ||
-    perFile < 1 ||
-    data.length <= perFile
-  ) {
-    return [{ filename: 'leads-export.csv', csv: rowsToCsv([...HEADERS], rows) }]
+  const rowMatrix = (chunk: LeadRow[]) =>
+    chunk.map((lead) => cols.map((c) => leadFieldValue(lead, c.id)))
+
+  const jsonRecords = (chunk: LeadRow[]) =>
+    chunk.map((lead) => {
+      const o: Record<string, string> = {}
+      for (const c of cols) {
+        o[c.label] = leadFieldValue(lead, c.id)
+      }
+      return o
+    })
+
+  if (format === 'json') {
+    const chunks = needsSplit ? chunkSlices(data, chunkSize) : [data]
+    const total = chunks.length
+    return chunks.map((chunk, i) => ({
+      kind: 'json' as const,
+      filename:
+        total > 1
+          ? `${prefix}leads-export-part-${i + 1}-of-${total}.json`
+          : `${prefix}leads-export.json`,
+      data: jsonRecords(chunk),
+    }))
   }
 
-  const chunks = chunkSlices(rows, Math.floor(perFile))
+  const delim = delimiterFromPreset(options.csvDelimiter)
+  const chunks = needsSplit ? chunkSlices(data, chunkSize) : [data]
   const total = chunks.length
   return chunks.map((chunk, i) => ({
-    filename: `leads-export-part-${i + 1}-of-${total}.csv`,
-    csv: rowsToCsv([...HEADERS], chunk),
+    kind: 'csv' as const,
+    filename:
+      total > 1
+        ? `${prefix}leads-export-part-${i + 1}-of-${total}.csv`
+        : `${prefix}leads-export.csv`,
+    content: rowsToDelimited(headers, rowMatrix(chunk), delim),
   }))
 }
 
-export async function runLeadCsvDownload(leads: LeadRow[], options: FlexibleExportInput) {
-  const files = buildLeadCsvExports(leads, options)
+export async function runLeadExport(leads: LeadRow[], options: FlexibleExportInput) {
+  const files = buildLeadExportFiles(leads, options)
   if (files.length === 0) {
     window.alert('Nothing to export for the current filters.')
     return
   }
   for (let i = 0; i < files.length; i++) {
     if (i > 0) await sleep(450)
-    downloadCsv(files[i].filename, files[i].csv)
+    const f = files[i]
+    if (f.kind === 'csv') downloadCsv(f.filename, f.content)
+    else downloadJson(f.filename, f.data)
   }
+}
+
+/** @deprecated use runLeadExport */
+export async function runLeadCsvDownload(leads: LeadRow[], options: FlexibleExportInput) {
+  return runLeadExport(leads, options)
 }

@@ -276,6 +276,8 @@ export type Database = {
           id: string
           industry: string | null
           last_name: string | null
+          /** Set when user completes first-run onboarding in the CRM */
+          onboarding_completed_at: string | null
           phone: string | null
           tier: Database["public"]["Enums"]["account_tier"]
           updated_at: string
@@ -291,6 +293,7 @@ export type Database = {
           id: string
           industry?: string | null
           last_name?: string | null
+          onboarding_completed_at?: string | null
           phone?: string | null
           tier?: Database["public"]["Enums"]["account_tier"]
           updated_at?: string
@@ -306,6 +309,7 @@ export type Database = {
           id?: string
           industry?: string | null
           last_name?: string | null
+          onboarding_completed_at?: string | null
           phone?: string | null
           tier?: Database["public"]["Enums"]["account_tier"]
           updated_at?: string
