@@ -424,7 +424,7 @@ export default function SettingsPage() {
             <div className="text-xs opacity-70 mt-1">
               {vapidPublicKey
                 ? hasPushSubscription
-                  ? 'Enabled. You will get new-lead alerts even when the app is closed.'
+                  ? 'Enabled on at least one device. Tap enable on this device too to make sure it is registered.'
                   : 'Enable to receive push notifications for new leads.'
                 : 'Set VITE_VAPID_PUBLIC_KEY in your env to enable web push.'}
             </div>
@@ -432,7 +432,7 @@ export default function SettingsPage() {
             <div className="mt-3 flex flex-wrap items-center gap-3">
               <button
                 type="button"
-                disabled={isPushSubscriptionPending || !vapidPublicKey || hasPushSubscription}
+                disabled={isPushSubscriptionPending || !vapidPublicKey}
                 onClick={async () => {
                   try {
                     setPushUiError(null)
@@ -448,7 +448,7 @@ export default function SettingsPage() {
                 }}
                 className="rounded-md px-3 py-2 text-sm font-semibold text-white cursor-pointer transition-colors duration-150 bg-[color:var(--color-primary)] hover:bg-[color:var(--color-primary-dark)] disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                {hasPushSubscription ? 'Enabled' : isPushSubscriptionPending ? 'Enabling…' : 'Enable notifications'}
+                {isPushSubscriptionPending ? 'Enabling…' : 'Enable notifications on this device'}
               </button>
 
               <button
