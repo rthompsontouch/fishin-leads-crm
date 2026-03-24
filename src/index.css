@@ -388,6 +388,8 @@ code {
 
 @media (max-width: 767px) {
   #root .crm-page-header {
+    /* In-page anchors land below fixed mobile top bar */
+    scroll-margin-top: calc(max(0.35rem, env(safe-area-inset-top, 0px)) + 4.1rem);
     flex-direction: column;
     align-items: stretch;
     justify-content: flex-start;
