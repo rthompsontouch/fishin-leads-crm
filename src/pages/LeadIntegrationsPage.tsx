@@ -46,7 +46,7 @@ export default function LeadIntegrationsPage() {
   }
 
   return (
-    <div className="crm-light-surface flex flex-col gap-6 max-md:pt-2">
+    <div className="crm-light-surface flex flex-col gap-6">
       <div className="crm-page-header">
         <h1 className="crm-page-header-title">Website &amp; lead capture</h1>
         <Link

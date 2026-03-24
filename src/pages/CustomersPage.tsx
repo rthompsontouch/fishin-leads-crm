@@ -64,7 +64,7 @@ export default function CustomersPage() {
   const showInitialLoading = isPending && !paged
 
   return (
-    <div className="flex flex-col gap-4 max-md:pt-2">
+    <div className="flex flex-col gap-4">
       <div className="crm-page-header crm-page-header--white crm-page-header--compact">
         <h1 className="crm-page-header-title">Customers</h1>
         <div className="flex flex-wrap items-center gap-2">
@@ -131,7 +131,7 @@ export default function CustomersPage() {
         </div>
 
         <div
-          className="grid grid-cols-4 md:grid-cols-6 gap-2 bg-slate-100 p-3 text-xs font-semibold"
+          className="grid grid-cols-4 md:grid-cols-6 gap-2 bg-slate-100 p-3 text-sm font-semibold"
           style={{ color: 'var(--crm-content-header-text)' }}
         >
           <div className="truncate min-w-0">Name</div>
@@ -176,12 +176,12 @@ export default function CustomersPage() {
                 return (
                   <div
                     key={c.id}
-                    className={`grid grid-cols-4 md:grid-cols-6 gap-2 px-3 py-2.5 items-center border-b transition-colors hover:bg-slate-50 ${isLast ? 'border-b-0' : ''}`}
+                    className={`grid grid-cols-4 md:grid-cols-6 gap-2 px-3 py-3 min-h-[3.25rem] items-center border-b transition-colors hover:bg-slate-50 ${isLast ? 'border-b-0' : ''}`}
                     style={{ borderColor: 'hsl(215 20% 88%)', color: 'var(--crm-content-header-text)' }}
                   >
                     <Link
                       to={`/customers/${c.id}`}
-                      className="truncate text-sm font-semibold min-w-0 no-underline hover:underline underline-offset-2"
+                      className="truncate text-base md:text-sm font-semibold min-w-0 no-underline hover:underline underline-offset-2"
                       style={{ color: 'var(--crm-content-header-text)' }}
                     >
                       {c.name}
@@ -198,9 +198,9 @@ export default function CustomersPage() {
                     <div className="hidden md:block truncate text-sm text-slate-700 min-w-0">
                       {c.industry || '—'}
                     </div>
-                    <div className="text-xs font-semibold min-w-0">
+                    <div className="text-sm font-semibold min-w-0">
                       <span
-                        className="inline-flex rounded-full px-2 py-1 max-w-full"
+                        className="inline-flex rounded-full px-2.5 py-1.5 max-w-full"
                         style={{
                           background: 'color-mix(in srgb, var(--color-primary) 10%, transparent)',
                           border: '1px solid hsl(215 22% 78%)',

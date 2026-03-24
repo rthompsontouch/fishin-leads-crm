@@ -117,7 +117,7 @@ export default function LeadDetailsPage() {
         : '—'
 
   return (
-    <div className="crm-light-surface flex flex-col gap-4 max-md:pt-2">
+    <div className="crm-light-surface flex flex-col gap-4">
       <div className="crm-page-header crm-page-header--white crm-page-header--compact">
         <div>
           <h1 className="crm-page-header-title">

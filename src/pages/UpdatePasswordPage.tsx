@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { Link, useNavigate } from 'react-router-dom'
-import { supabase } from '../lib/supabaseClient'
+import { clearAuthPersistenceChoice, supabase } from '../lib/supabaseClient'
 import { strongNewPasswordSchema } from '../lib/passwordStrength'
 import NewPasswordPairFields, { type NewPasswordPair } from '../components/NewPasswordPairFields'
 import { formatErrorForUser, useAppMessages } from '../context/AppMessagesContext'
@@ -96,6 +96,7 @@ export default function UpdatePasswordPage() {
       return
     }
 
+    clearAuthPersistenceChoice()
     await supabase.auth.signOut()
     navigate('/login?reset=success', { replace: true })
   }

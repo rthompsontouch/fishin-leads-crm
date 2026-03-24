@@ -97,7 +97,14 @@ const EXTRA_BRAND_NAMES = [
   'fishin-logo.svg',
 ] as const
 
-function SidebarBrandMark({ compactLeft }: { compactLeft?: boolean }) {
+function SidebarBrandMark({
+  compactLeft,
+  mobileHeader,
+}: {
+  compactLeft?: boolean
+  /** Top mobile bar: larger mark for touch / visibility */
+  mobileHeader?: boolean
+}) {
   const { data: manifest } = useQuery({
     queryKey: ['brand-manifest'],
     queryFn: fetchBrandManifest,
@@ -132,7 +139,7 @@ function SidebarBrandMark({ compactLeft }: { compactLeft?: boolean }) {
     return (
       <div
         className={[
-          'text-sm font-semibold tracking-tight px-2',
+          mobileHeader ? 'text-base font-semibold tracking-tight px-1' : 'text-sm font-semibold tracking-tight px-2',
           compactLeft ? 'text-left truncate' : 'text-center',
         ].join(' ')}
       >
@@ -141,15 +148,18 @@ function SidebarBrandMark({ compactLeft }: { compactLeft?: boolean }) {
     )
   }
 
+  const imgClass = mobileHeader
+    ? 'max-h-[3.25rem] max-w-[min(100%,280px)] w-auto object-contain object-left object-top'
+    : compactLeft
+      ? 'max-h-8 max-w-[140px] w-auto object-contain object-left object-top'
+      : 'max-h-10 max-w-[200px] w-auto object-contain mx-auto object-center'
+
   return (
     <img
       src={candidates[attempt]}
       alt="Fishin Leads CRM"
       title="Fishin Leads CRM"
-      className={[
-        'max-h-10 max-w-[200px] w-auto object-contain',
-        compactLeft ? 'max-h-8 max-w-[140px] object-left object-top' : 'mx-auto object-center',
-      ].join(' ')}
+      className={imgClass}
       onError={() => setAttempt((n) => n + 1)}
     />
   )
@@ -230,6 +240,10 @@ export default function AppShell() {
   /** Matches header hamburger / other neutral bordered controls */
   const shellIconButtonClass =
     'cursor-pointer rounded-md px-2 py-2 text-sm font-medium border transition-colors duration-150 border-[color:var(--color-border)] bg-transparent text-[color:var(--color-foreground)] hover:bg-[color:var(--crm-nav-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-primary)]'
+
+  /** Mobile top bar: 44px+ touch targets */
+  const shellMobileHeaderIconButtonClass =
+    'cursor-pointer rounded-xl min-h-12 min-w-12 inline-flex items-center justify-center border-2 transition-colors duration-150 border-[color:var(--color-border)] bg-transparent text-[color:var(--color-foreground)] hover:bg-[color:var(--crm-nav-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-primary)]'
 
   return (
     <div
@@ -550,43 +564,43 @@ export default function AppShell() {
         <header
           className="md:hidden fixed top-0 left-0 right-0 z-40 flex items-center justify-between gap-2 border-b shadow-sm"
           style={{
-            paddingTop: 'max(0.5rem, env(safe-area-inset-top))',
-            paddingLeft: 'max(0.75rem, env(safe-area-inset-left))',
-            paddingRight: 'max(0.75rem, env(safe-area-inset-right))',
-            paddingBottom: '0.5rem',
+            paddingTop: 'max(0.35rem, env(safe-area-inset-top))',
+            paddingLeft: 'max(0.65rem, env(safe-area-inset-left))',
+            paddingRight: 'max(0.65rem, env(safe-area-inset-right))',
+            paddingBottom: '0.35rem',
             background: 'var(--crm-header-bg)',
             borderColor: 'var(--color-border)',
             color: 'var(--color-foreground)',
           }}
         >
-          <div className="min-w-0 flex-1 flex items-center">
-            <div className="min-w-0 max-w-[min(100%,11rem)] sm:max-w-[13rem]">
-              <SidebarBrandMark compactLeft />
+          <div className="min-w-0 flex-1 flex items-center min-h-12">
+            <div className="min-w-0 max-w-[min(100%,18rem)] pr-1">
+              <SidebarBrandMark compactLeft mobileHeader />
             </div>
           </div>
-          <div className="flex items-center gap-1.5 shrink-0">
+          <div className="flex items-center gap-2 shrink-0">
             <Link
               to="/settings"
-              className={`${shellIconButtonClass} shadow-sm`}
+              className={`${shellMobileHeaderIconButtonClass} shadow-sm`}
               style={{ background: 'color-mix(in srgb, var(--color-background) 55%, transparent)' }}
               aria-label="Account and settings"
             >
-              <UserCircle size={22} className="shrink-0 opacity-95" strokeWidth={2} />
+              <UserCircle size={26} className="shrink-0 opacity-95" strokeWidth={2} />
             </Link>
             <button
               type="button"
               onClick={() => setIsMobileMenuOpen(true)}
-              className={`${shellIconButtonClass} shadow-sm`}
+              className={`${shellMobileHeaderIconButtonClass} shadow-sm`}
               style={{ background: 'color-mix(in srgb, var(--color-background) 55%, transparent)' }}
               aria-label="Open menu"
             >
-              <Menu size={22} strokeWidth={2.25} />
+              <Menu size={26} strokeWidth={2.25} />
             </button>
           </div>
         </header>
 
         <main
-          className="flex-1 overflow-y-auto px-6 pb-6 pt-1 max-md:pt-[calc(3.75rem+env(safe-area-inset-top))] crm-scrollbar min-w-0"
+          className="flex-1 overflow-y-auto px-6 pb-6 pt-1 max-md:pt-[calc(3.2rem+env(safe-area-inset-top))] crm-scrollbar min-w-0"
           style={{ background: 'var(--crm-main-bg)' }}
         >
           <Outlet />

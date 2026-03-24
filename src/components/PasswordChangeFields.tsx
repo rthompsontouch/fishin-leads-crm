@@ -68,7 +68,7 @@ export default function PasswordChangeFields({
   const errorsNew = errors as unknown as FieldErrors<NewPasswordPair>
 
   return (
-    <div className="flex flex-col gap-0">
+    <div className="crm-signup-on-light flex flex-col gap-0">
       <label className="signup-field">
         <span>
           Current password <b>*</b>

@@ -13,7 +13,7 @@ import {
   updateMyProfile,
   uploadMyCompanyLogo,
 } from '../features/account/api/accountApi'
-import { supabase } from '../lib/supabaseClient'
+import { clearAuthPersistenceChoice, supabase } from '../lib/supabaseClient'
 import { strongNewPasswordSchema } from '../lib/passwordStrength'
 import PasswordChangeFields, { type PasswordChangeFormFields } from '../components/PasswordChangeFields'
 import FormFieldError from '../components/FormFieldError'
@@ -21,6 +21,7 @@ import { formatErrorForUser, useAppMessages } from '../context/AppMessagesContex
 import { ensureWebPushSubscribed } from '../lib/webPushSubscription'
 import { getHasMyPushSubscription } from '../features/notifications/api/notificationsApi'
 import { LogOut } from 'lucide-react'
+import CrmModal from '../components/CrmModal'
 
 const settingsCardClass =
   'rounded-xl bg-white p-6 sm:p-7 shadow-sm ring-1 ring-black/5'
@@ -63,6 +64,8 @@ export default function SettingsPage() {
   const [pushTestResult, setPushTestResult] = useState<string | null>(null)
   const [reminderDispatchBusy, setReminderDispatchBusy] = useState(false)
   const [reminderDispatchResult, setReminderDispatchResult] = useState<string | null>(null)
+  const [emailModalOpen, setEmailModalOpen] = useState(false)
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false)
   const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined
 
   useEffect(() => {
@@ -257,6 +260,7 @@ export default function SettingsPage() {
 
   async function handleSignOut() {
     if (!supabase) throw new Error('Supabase client not configured')
+    clearAuthPersistenceChoice()
     await supabase.auth.signOut()
     navigate('/login', { replace: true })
   }
@@ -265,7 +269,7 @@ export default function SettingsPage() {
     'font-semibold text-[color:var(--color-primary)] underline-offset-2 hover:underline'
 
   return (
-    <div className="crm-light-surface flex flex-col gap-6 max-md:pt-2 max-w-3xl w-full">
+    <div className="crm-light-surface flex flex-col gap-6 max-w-3xl w-full">
       <div className="crm-page-header">
         <h1 className="crm-page-header-title">Settings</h1>
         <button
@@ -370,7 +374,7 @@ export default function SettingsPage() {
             <div className="text-sm text-slate-600">Loading profile…</div>
           ) : (
             <form
-              className="grid grid-cols-1 gap-3 pt-2 border-t border-[hsl(215_20%_88%)]"
+              className="crm-form-dark grid grid-cols-1 gap-3 pt-2 border-t border-[hsl(215_20%_88%)]"
               onSubmit={accountForm.handleSubmit(async (v) => {
                 try {
                   await handleSaveAccount(v)
@@ -465,6 +469,42 @@ export default function SettingsPage() {
             <div className="text-sm font-semibold tabular-nums" style={{ color: 'var(--crm-content-header-text)' }}>
               {currentEmail ?? '—'}
             </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row flex-wrap gap-3 mb-8">
+            <button
+              type="button"
+              className="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-3.5 text-base font-semibold border-2 min-h-12 cursor-pointer transition-colors bg-white hover:bg-slate-50"
+              style={{
+                color: 'var(--crm-content-header-text)',
+                borderColor: 'hsl(215 22% 72%)',
+              }}
+              onClick={() => {
+                if (currentEmail) emailForm.setValue('new_email', currentEmail)
+                emailForm.setValue('current_password_for_email', '')
+                setEmailModalOpen(true)
+              }}
+            >
+              Change email
+            </button>
+            <button
+              type="button"
+              className="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-3.5 text-base font-semibold border-2 min-h-12 cursor-pointer transition-colors bg-white hover:bg-slate-50"
+              style={{
+                color: 'var(--crm-content-header-text)',
+                borderColor: 'hsl(215 22% 72%)',
+              }}
+              onClick={() => {
+                passwordForm.reset({
+                  current_password: '',
+                  new_password: '',
+                  confirm_password: '',
+                })
+                setPasswordModalOpen(true)
+              }}
+            >
+              Change password
+            </button>
           </div>
 
           <div className={`${settingsInsetClass} mb-6`} style={insetBorderStyle}>
@@ -624,28 +664,37 @@ export default function SettingsPage() {
               </div>
             ) : null}
           </div>
+        </div>
+      </div>
 
+      <CrmModal
+        open={emailModalOpen}
+        title="Change email"
+        wide
+        onClose={() => setEmailModalOpen(false)}
+      >
+        <div className="crm-light-surface crm-form-dark rounded-xl border bg-white p-4 sm:p-5" style={insetBorderStyle}>
+          <p className="text-sm text-slate-600 m-0 mb-4">
+            We may send a confirmation link to the new address, depending on your auth provider.
+          </p>
           <form
-            className="grid grid-cols-1 gap-3 mb-10 pt-2 border-t border-[hsl(215_20%_88%)]"
+            className="grid grid-cols-1 gap-4"
             onSubmit={emailForm.handleSubmit(async (v) => {
               try {
                 await handleChangeEmail(v)
+                setEmailModalOpen(false)
               } catch (e) {
                 toastError(formatErrorForUser(e))
               }
             })}
           >
-            <div className="text-base font-semibold" style={{ color: 'var(--crm-content-header-text)' }}>
-              Change email
-            </div>
-
-            <label className="flex flex-col gap-1 text-sm font-medium" style={fieldLabelStyle}>
+            <label className="flex flex-col gap-1.5 text-sm font-medium" style={fieldLabelStyle}>
               New email
               <input className={fieldInputClass} style={fieldInputStyle} {...emailForm.register('new_email')} />
               <FormFieldError message={emailForm.formState.errors.new_email?.message} />
             </label>
 
-            <label className="flex flex-col gap-1 text-sm font-medium" style={fieldLabelStyle}>
+            <label className="flex flex-col gap-1.5 text-sm font-medium" style={fieldLabelStyle}>
               Current password
               <input
                 type="password"
@@ -657,31 +706,32 @@ export default function SettingsPage() {
               <FormFieldError message={emailForm.formState.errors.current_password_for_email?.message} />
             </label>
 
-            <div className="flex justify-end">
+            <div className="flex justify-end pt-1">
               <button
                 type="submit"
-                className="rounded-md px-5 py-2.5 text-sm font-semibold text-white cursor-pointer transition-colors duration-150 bg-[color:var(--color-primary)] hover:bg-[color:var(--color-primary-dark)] disabled:opacity-60 disabled:cursor-not-allowed"
+                className="rounded-lg px-6 py-3.5 min-h-12 text-base font-semibold text-white cursor-pointer transition-colors duration-150 bg-[color:var(--color-primary)] hover:bg-[color:var(--color-primary-dark)] disabled:opacity-60 disabled:cursor-not-allowed"
                 disabled={emailForm.formState.isSubmitting}
               >
                 {emailForm.formState.isSubmitting ? 'Updating...' : 'Update email'}
               </button>
             </div>
           </form>
+        </div>
+      </CrmModal>
 
+      <CrmModal open={passwordModalOpen} title="Change password" wide onClose={() => setPasswordModalOpen(false)}>
+        <div className="crm-light-surface crm-form-dark rounded-xl border bg-white p-4 sm:p-5" style={insetBorderStyle}>
           <form
-            className="grid grid-cols-1 gap-3 pt-2 border-t border-[hsl(215_20%_88%)]"
+            className="grid grid-cols-1 gap-4"
             onSubmit={passwordForm.handleSubmit(async (v) => {
               try {
                 await handleChangePassword(v)
+                setPasswordModalOpen(false)
               } catch (e) {
                 toastError(formatErrorForUser(e))
               }
             })}
           >
-            <div className="text-base font-semibold" style={{ color: 'var(--crm-content-header-text)' }}>
-              Change password
-            </div>
-
             <PasswordChangeFields
               register={passwordForm.register}
               watch={passwordForm.watch}
@@ -695,7 +745,7 @@ export default function SettingsPage() {
             <div className="flex justify-end pt-1">
               <button
                 type="submit"
-                className="rounded-md px-5 py-2.5 text-sm font-semibold text-white cursor-pointer transition-colors duration-150 bg-[color:var(--color-primary)] hover:bg-[color:var(--color-primary-dark)] disabled:opacity-60 disabled:cursor-not-allowed"
+                className="rounded-lg px-6 py-3.5 min-h-12 text-base font-semibold text-white cursor-pointer transition-colors duration-150 bg-[color:var(--color-primary)] hover:bg-[color:var(--color-primary-dark)] disabled:opacity-60 disabled:cursor-not-allowed"
                 disabled={passwordForm.formState.isSubmitting}
               >
                 {passwordForm.formState.isSubmitting ? 'Updating...' : 'Update password'}
@@ -703,7 +753,7 @@ export default function SettingsPage() {
             </div>
           </form>
         </div>
-      </div>
+      </CrmModal>
     </div>
   )
 }

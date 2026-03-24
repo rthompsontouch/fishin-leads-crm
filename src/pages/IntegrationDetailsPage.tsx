@@ -45,7 +45,7 @@ export default function IntegrationDetailsPage() {
 
   if (!safeId || !isValidUuid) {
     return (
-      <div className="crm-light-surface flex flex-col gap-4 max-md:pt-2">
+      <div className="crm-light-surface flex flex-col gap-4">
         <div className="text-sm" style={{ color: 'var(--color-danger)' }}>
           Invalid integration link.
         </div>
@@ -58,7 +58,7 @@ export default function IntegrationDetailsPage() {
 
   if (isPending) {
     return (
-      <div className="crm-light-surface max-md:pt-2">
+      <div className="crm-light-surface">
         <div className="text-sm text-slate-600">Loading integration...</div>
       </div>
     )
@@ -66,7 +66,7 @@ export default function IntegrationDetailsPage() {
 
   if (error) {
     return (
-      <div className="crm-light-surface flex flex-col gap-4 max-md:pt-2">
+      <div className="crm-light-surface flex flex-col gap-4">
         <div className="text-sm" style={{ color: 'var(--color-danger)' }}>
           {String((error as Error).message)}
         </div>
@@ -79,7 +79,7 @@ export default function IntegrationDetailsPage() {
 
   if (!integration) {
     return (
-      <div className="crm-light-surface flex flex-col gap-4 max-md:pt-2">
+      <div className="crm-light-surface flex flex-col gap-4">
         <div className="text-sm text-slate-700">Integration not found.</div>
         <Link to="/integrations/leads" className={backLinkClass} style={backLinkStyle}>
           Back to website &amp; leads
@@ -100,7 +100,7 @@ export default function IntegrationDetailsPage() {
 }`
 
   return (
-    <div className="crm-light-surface flex flex-col gap-6 max-md:pt-2">
+    <div className="crm-light-surface flex flex-col gap-6">
       <div className="crm-page-header">
         <h1 className="crm-page-header-title">{integration.name}</h1>
         <div className="flex flex-wrap gap-2">

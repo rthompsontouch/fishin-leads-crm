@@ -1,9 +1,11 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
-import { supabase } from '../lib/supabaseClient'
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
+import { setNextAuthPersistence, supabase } from '../lib/supabaseClient'
+import { getLoginBrandLogoCandidates } from '../lib/loginBrandLogo'
+import ForgotPasswordDialog from '../features/auth/components/ForgotPasswordDialog'
 
 const loginSchema = z.object({
   email: z.string().email({ message: 'Enter a valid email address.' }),
@@ -21,6 +23,9 @@ export default function LoginPage() {
   const passwordResetOk = searchParams.get('reset') === 'success'
 
   const [formError, setFormError] = useState<string | null>(null)
+  const [rememberMe, setRememberMe] = useState(true)
+  const [forgotOpen, setForgotOpen] = useState(false)
+  const [logoCandidateIndex, setLogoCandidateIndex] = useState(0)
 
   const emailFromSignup = searchParams.get('email') ?? ''
 
@@ -30,7 +35,29 @@ export default function LoginPage() {
     mode: 'onSubmit',
   })
 
+  const emailValue = form.watch('email')
+  const [debouncedEmail, setDebouncedEmail] = useState('')
+
+  useEffect(() => {
+    const t = window.setTimeout(() => setDebouncedEmail(emailValue.trim()), 450)
+    return () => window.clearTimeout(t)
+  }, [emailValue])
+
+  const logoCandidates = useMemo(
+    () => getLoginBrandLogoCandidates(debouncedEmail),
+    [debouncedEmail],
+  )
+
+  useEffect(() => {
+    setLogoCandidateIndex(0)
+  }, [debouncedEmail])
+
   const supabaseMissing = useMemo(() => !supabase, [])
+
+  const activeLogoSrc =
+    logoCandidates.length > 0 && logoCandidateIndex < logoCandidates.length
+      ? logoCandidates[logoCandidateIndex]
+      : null
 
   async function onSubmit(values: LoginFormValues) {
     setFormError(null)
@@ -41,6 +68,8 @@ export default function LoginPage() {
       )
       return
     }
+
+    setNextAuthPersistence(rememberMe)
 
     const { error } = await supabase.auth.signInWithPassword({
       email: values.email,
@@ -67,11 +96,20 @@ export default function LoginPage() {
         className="w-full max-w-md rounded-xl border p-6 shadow-sm"
         style={{ borderColor: 'var(--color-border)' }}
       >
+        {activeLogoSrc ? (
+          <div className="flex justify-center mb-5 min-h-[3.5rem]">
+            <img
+              src={activeLogoSrc}
+              alt=""
+              className="max-h-14 max-w-[200px] w-auto object-contain"
+              onError={() => setLogoCandidateIndex((i) => i + 1)}
+            />
+          </div>
+        ) : null}
+
         <div className="mb-6">
           <h1 className="text-2xl font-semibold">Sign in</h1>
-          <p className="text-sm opacity-80 mt-1">
-            Welcome back to your CRM.
-          </p>
+          <p className="text-sm opacity-80 mt-1">Welcome back to your CRM.</p>
         </div>
 
         {passwordResetOk ? (
@@ -101,8 +139,7 @@ export default function LoginPage() {
             style={{ borderColor: 'var(--color-border)' }}
           >
             Supabase is not configured yet. Create a <code>.env</code> file with{' '}
-            <code>VITE_SUPABASE_URL</code> and{' '}
-            <code>VITE_SUPABASE_PUBLISHABLE_KEY</code>.
+            <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_PUBLISHABLE_KEY</code>.
           </div>
         ) : null}
 
@@ -112,7 +149,11 @@ export default function LoginPage() {
             <input
               type="email"
               className="rounded-md border px-3 py-2 outline-none"
-              style={{ borderColor: 'var(--color-border)' }}
+              style={{
+                borderColor: 'var(--color-border)',
+                background: 'var(--color-background)',
+                color: 'var(--color-foreground)',
+              }}
               {...form.register('email')}
             />
             {form.formState.errors.email ? (
@@ -128,7 +169,11 @@ export default function LoginPage() {
               type="password"
               autoComplete="current-password"
               className="rounded-md border px-3 py-2 outline-none"
-              style={{ borderColor: 'var(--color-border)' }}
+              style={{
+                borderColor: 'var(--color-border)',
+                background: 'var(--color-background)',
+                color: 'var(--color-foreground)',
+              }}
               {...form.register('password')}
             />
             {form.formState.errors.password ? (
@@ -138,13 +183,25 @@ export default function LoginPage() {
             ) : null}
           </label>
 
+          <label className="flex items-center gap-2.5 text-sm cursor-pointer select-none -mt-1">
+            <input
+              type="checkbox"
+              className="size-4 rounded border shrink-0 cursor-pointer accent-[color:var(--color-primary)]"
+              style={{ borderColor: 'var(--color-border)' }}
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
+            />
+            <span>Remember me on this device</span>
+          </label>
+
           <div className="flex justify-end -mt-1">
-            <Link
-              to="/forgot-password"
-              className="text-xs font-semibold text-[color:var(--color-primary)] hover:underline"
+            <button
+              type="button"
+              className="text-xs font-semibold text-[color:var(--color-primary)] hover:underline cursor-pointer bg-transparent border-0 p-0"
+              onClick={() => setForgotOpen(true)}
             >
               Forgot password?
-            </Link>
+            </button>
           </div>
 
           <button
@@ -156,11 +213,16 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <div className="text-xs opacity-70 mt-4">
+        <p className="text-xs opacity-70 mt-4 m-0">
           By continuing, you agree to your organization’s internal policies.
-        </div>
+        </p>
       </div>
+
+      <ForgotPasswordDialog
+        open={forgotOpen}
+        onClose={() => setForgotOpen(false)}
+        initialEmail={emailValue.trim()}
+      />
     </div>
   )
 }
-

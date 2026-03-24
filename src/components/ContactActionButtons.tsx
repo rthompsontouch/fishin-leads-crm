@@ -5,7 +5,7 @@ const linkClass =
 
 /** Tighter pills for table cells (mobile + desktop). */
 const linkClassTable =
-  'crm-contact-link crm-contact-link--dark inline-flex items-center gap-1 rounded-sm px-2 py-1 text-[11px] font-semibold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:ring-offset-1 focus-visible:ring-offset-[color:var(--color-background)] whitespace-nowrap shrink-0'
+  'crm-contact-link crm-contact-link--dark inline-flex items-center gap-1.5 rounded-md px-3 py-2 min-h-10 min-w-[4.25rem] justify-center text-sm font-semibold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:ring-offset-1 focus-visible:ring-offset-[color:var(--color-background)] whitespace-nowrap shrink-0'
 
 /** Build `tel:` href from stored phone (digits and leading + kept). */
 export function telHref(phone: string | null | undefined): string | null {
@@ -33,11 +33,11 @@ export function CallLinkCell({
 }) {
   const tel = telHref(phone)
   if (!tel) {
-    return <span className={`text-sm text-slate-400 tabular-nums ${className}`.trim()}>—</span>
+    return <span className={`text-base text-slate-400 tabular-nums ${className}`.trim()}>—</span>
   }
   return (
     <a href={tel} className={`${linkClassTable} ${className}`.trim()}>
-      <Phone size={12} className="shrink-0 opacity-80" aria-hidden />
+      <Phone size={16} className="shrink-0 opacity-80" aria-hidden />
       Call
     </a>
   )
@@ -54,11 +54,11 @@ export function EmailLinkCell({
 }) {
   const mail = mailtoHref(email, contactLabel ? `Re: ${contactLabel}` : undefined)
   if (!mail) {
-    return <span className={`text-sm text-slate-400 ${className}`.trim()}>—</span>
+    return <span className={`text-base text-slate-400 ${className}`.trim()}>—</span>
   }
   return (
     <a href={mail} className={`${linkClassTable} ${className}`.trim()}>
-      <Mail size={12} className="shrink-0 opacity-90" aria-hidden />
+      <Mail size={16} className="shrink-0 opacity-90" aria-hidden />
       Email
     </a>
   )

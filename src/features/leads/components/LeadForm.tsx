@@ -101,7 +101,7 @@ export default function LeadForm({
 
   return (
     <form
-      className="grid grid-cols-1 md:grid-cols-2 gap-4"
+      className="crm-form-dark grid grid-cols-1 md:grid-cols-2 gap-4"
       onSubmit={form.handleSubmit(handleSubmit)}
     >
       <label className="flex flex-col gap-1 text-sm">
@@ -185,7 +185,7 @@ export default function LeadForm({
       </label>
 
       <div className="md:col-span-2 flex flex-wrap items-center gap-2 min-h-[2rem]">
-        <span className="text-xs opacity-70">Quick actions:</span>
+        <span className="text-sm text-slate-600 font-medium">Quick actions:</span>
         <ContactActionButtons phone={phoneVal} email={emailVal} />
       </div>
 

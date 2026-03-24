@@ -68,7 +68,7 @@ export default function CustomerForm({
 
   return (
     <form
-      className="grid grid-cols-1 md:grid-cols-2 gap-4"
+      className="crm-form-dark grid grid-cols-1 md:grid-cols-2 gap-4"
       onSubmit={form.handleSubmit(async (values) => {
         await onSubmit({
           name: values.name.trim(),

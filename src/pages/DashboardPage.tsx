@@ -210,7 +210,7 @@ export default function DashboardPage() {
     'crm-dashboard-export-stats inline-flex items-center justify-center gap-2 rounded-sm px-3 py-2 text-sm font-semibold cursor-pointer'
 
   return (
-    <div className="flex flex-col gap-4 max-md:pt-2">
+    <div className="flex flex-col gap-4">
       <div className="crm-page-header crm-page-header--white crm-page-header--compact">
         <h1 className="crm-page-header-title">Dashboard</h1>
         <div className="flex flex-wrap items-center gap-2">

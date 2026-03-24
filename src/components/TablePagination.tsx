@@ -1,5 +1,5 @@
 const btnOutline =
-  'cursor-pointer rounded-md px-3 py-1.5 text-xs font-semibold border-2 transition-colors duration-150 border-[hsl(215_22%_72%)] bg-white text-[color:var(--crm-content-header-text)] hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white'
+  'cursor-pointer rounded-lg px-4 py-2.5 min-h-11 text-sm font-semibold border-2 transition-colors duration-150 border-[hsl(215_22%_72%)] bg-white text-[color:var(--crm-content-header-text)] hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white'
 
 export const DEFAULT_PAGE_SIZE = 15
 
@@ -26,7 +26,7 @@ export default function TablePagination({
 
   return (
     <div
-      className="flex flex-wrap items-center justify-between gap-3 px-4 py-2 border-t text-xs"
+      className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-t text-sm"
       style={{
         borderColor: 'hsl(215 20% 88%)',
         color: 'var(--crm-content-header-text)',

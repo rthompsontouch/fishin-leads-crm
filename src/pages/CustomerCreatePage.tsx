@@ -30,7 +30,9 @@ export default function CustomerCreatePage() {
         <h1 className="crm-page-header-title">Add Customer</h1>
       </div>
 
-      <div className="rounded-xl border p-6" style={{ borderColor: 'var(--color-border)' }}>
+      <div
+        className="crm-light-surface crm-form-dark rounded-xl border border-[color:var(--color-border)] bg-white p-6 shadow-sm ring-1 ring-black/5"
+      >
         {error ? (
           <div className="mb-4 text-sm" style={{ color: 'var(--color-danger)' }}>
             {error}
