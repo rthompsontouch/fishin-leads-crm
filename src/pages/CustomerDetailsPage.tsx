@@ -893,11 +893,7 @@ export default function CustomerDetailsPage() {
               <div className="md:col-span-2 flex flex-wrap justify-end gap-2 pt-2 border-t" style={{ borderColor: 'hsl(215 20% 88%)' }}>
                 <button
                   type="button"
-                  className="rounded-md px-4 py-2 text-sm font-semibold border-2 bg-white cursor-pointer transition-colors duration-150 hover:bg-slate-50"
-                  style={{
-                    color: 'var(--crm-content-header-text)',
-                    borderColor: 'hsl(215 22% 72%)',
-                  }}
+                  className="crm-cancel-btn rounded-md px-4 py-2 text-sm font-semibold cursor-pointer"
                   onClick={() => setScheduleJobModalOpen(false)}
                   disabled={manualJobSubmitting}
                 >

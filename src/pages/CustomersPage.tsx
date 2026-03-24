@@ -5,6 +5,7 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import TablePagination from '../components/TablePagination'
 import { CallLinkCell, EmailLinkCell } from '../components/ContactActionButtons'
 import ExportDataModal from '../components/ExportDataModal'
+import TableSkeleton from '../components/TableSkeleton'
 import {
   listCustomersForExport,
   listCustomersPaged,
@@ -210,9 +211,7 @@ export default function CustomersPage() {
         </div>
 
         {showInitialLoading ? (
-          <div className="p-6 text-sm" style={{ color: 'var(--crm-content-header-text)', opacity: 0.85 }}>
-            Loading customers...
-          </div>
+          <TableSkeleton rows={7} columns={6} />
         ) : error ? (
           <div className="p-6 text-sm" style={{ color: 'var(--color-danger)' }}>
             Failed to load customers. {String((error as Error).message)}

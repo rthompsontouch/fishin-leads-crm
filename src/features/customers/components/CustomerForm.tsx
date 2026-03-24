@@ -1,9 +1,11 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useLayoutEffect, useMemo, useRef } from 'react'
+import type { ReactNode } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import IndustryCompanySizeFields from '../../../components/IndustryCompanySizeFields'
 import ContactActionButtons from '../../../components/ContactActionButtons'
+import LoadingSpinner from '../../../components/LoadingSpinner'
 import {
   buildCompanySizeOptions,
   CRM_COMPANY_SIZES,
@@ -45,10 +47,12 @@ export default function CustomerForm({
   initialValues,
   submitLabel,
   onSubmit,
+  footerLeft,
 }: {
   initialValues?: Partial<CreateCustomerInput>
   submitLabel: string
   onSubmit: (values: CreateCustomerInput) => Promise<void> | void
+  footerLeft?: ReactNode
 }) {
   const allowLegacyCompanySizeRef = useRef<string | null>(null)
   useLayoutEffect(() => {
@@ -400,13 +404,21 @@ export default function CustomerForm({
         </select>
       </label>
 
-      <div className="md:col-span-2 flex justify-end">
+      <div className="md:col-span-2 flex items-center justify-between gap-2">
+        <div>{footerLeft ?? null}</div>
         <button
           type="submit"
-          className="rounded-md px-4 py-2 text-sm font-semibold text-white cursor-pointer transition-colors duration-150 bg-[color:var(--color-primary)] hover:bg-[color:var(--color-primary-dark)] disabled:opacity-60 disabled:cursor-not-allowed"
+          className="inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-semibold text-white cursor-pointer transition-colors duration-150 bg-[color:var(--color-primary)] hover:bg-[color:var(--color-primary-dark)] disabled:opacity-60 disabled:cursor-not-allowed"
           disabled={form.formState.isSubmitting}
         >
-          {form.formState.isSubmitting ? 'Saving...' : submitLabel}
+          {form.formState.isSubmitting ? (
+            <>
+              <LoadingSpinner />
+              Saving...
+            </>
+          ) : (
+            submitLabel
+          )}
         </button>
       </div>
     </form>

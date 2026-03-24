@@ -5,6 +5,7 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import TablePagination from '../components/TablePagination'
 import { CallLinkCell, EmailLinkCell } from '../components/ContactActionButtons'
 import ExportDataModal from '../components/ExportDataModal'
+import TableSkeleton from '../components/TableSkeleton'
 import { listLeadsForExport, listLeadsPaged } from '../features/leads/api/leadsApi'
 import { LEAD_EXPORT_FIELDS, runLeadExport } from '../lib/exportLeadsCsv'
 
@@ -274,9 +275,7 @@ export default function LeadsPage() {
         </div>
 
         {showInitialLoading ? (
-          <div className="p-6 text-sm" style={{ color: 'var(--crm-content-header-text)', opacity: 0.85 }}>
-            Loading leads...
-          </div>
+          <TableSkeleton rows={7} columns={7} />
         ) : error ? (
           <div className="p-6 text-sm" style={{ color: 'var(--color-danger)' }}>
             Failed to load leads. {String((error as Error).message)}

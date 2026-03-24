@@ -81,8 +81,7 @@ export default function LeadCreatePage() {
         <div className="mt-4">
           <Link
             to="/leads"
-            className="text-sm font-semibold"
-            style={{ color: 'var(--color-primary)' }}
+            className="crm-cancel-btn rounded-md px-4 py-2 text-sm font-semibold"
           >
             Cancel
           </Link>

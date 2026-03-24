@@ -23,6 +23,7 @@ import { getHasMyPushSubscription } from '../features/notifications/api/notifica
 import { LogOut } from 'lucide-react'
 import CrmModal from '../components/CrmModal'
 import IndustryCompanySizeFields from '../components/IndustryCompanySizeFields'
+import LoadingSpinner from '../components/LoadingSpinner'
 import {
   buildCompanySizeOptions,
   CRM_COMPANY_SIZES,
@@ -316,12 +317,12 @@ export default function SettingsPage() {
 
   return (
     <div className="crm-light-surface flex flex-col gap-6 max-w-3xl w-full">
-      <div className="crm-page-header">
+      <div className="crm-page-header settings-page-header">
         <h1 className="crm-page-header-title">Settings</h1>
         <button
           type="button"
           onClick={() => void handleSignOut()}
-          className="inline-flex flex-row flex-nowrap items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-semibold border-2 cursor-pointer transition-colors duration-150 bg-white max-md:w-full sm:w-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-danger)] focus-visible:ring-offset-2 hover:!bg-[color:var(--color-danger)] hover:!text-white hover:!border-[color:var(--color-danger)]"
+          className="inline-flex flex-row flex-nowrap items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-semibold border-2 cursor-pointer transition-colors duration-150 bg-white sm:w-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-danger)] focus-visible:ring-offset-2 hover:!bg-[color:var(--color-danger)] hover:!text-white hover:!border-[color:var(--color-danger)]"
           style={{
             color: 'var(--color-danger)',
             borderColor: 'color-mix(in srgb, var(--color-danger) 50%, hsl(215 22% 82%))',
@@ -417,7 +418,12 @@ export default function SettingsPage() {
           </div>
 
           {isProfilePending ? (
-            <div className="text-sm text-slate-600">Loading profile…</div>
+            <div className="space-y-3 py-2">
+              <div className="h-5 w-40 animate-pulse rounded bg-slate-200/90" />
+              <div className="h-10 w-full animate-pulse rounded bg-slate-200/70" />
+              <div className="h-10 w-full animate-pulse rounded bg-slate-200/70" />
+              <div className="h-10 w-full animate-pulse rounded bg-slate-200/70" />
+            </div>
           ) : (
             <form
               className="crm-form-dark grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t border-[hsl(215_20%_88%)]"
@@ -494,10 +500,17 @@ export default function SettingsPage() {
               <div className="flex justify-end pt-1 md:col-span-2">
                 <button
                   type="submit"
-                  className="rounded-md px-5 py-2.5 text-sm font-semibold text-white cursor-pointer transition-colors duration-150 bg-[color:var(--color-primary)] hover:bg-[color:var(--color-primary-dark)] disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="inline-flex items-center gap-2 rounded-md px-5 py-2.5 text-sm font-semibold text-white cursor-pointer transition-colors duration-150 bg-[color:var(--color-primary)] hover:bg-[color:var(--color-primary-dark)] disabled:opacity-60 disabled:cursor-not-allowed"
                   disabled={accountForm.formState.isSubmitting}
                 >
-                  {accountForm.formState.isSubmitting ? 'Saving...' : 'Save changes'}
+                  {accountForm.formState.isSubmitting ? (
+                    <>
+                      <LoadingSpinner />
+                      Saving...
+                    </>
+                  ) : (
+                    'Save changes'
+                  )}
                 </button>
               </div>
             </form>
@@ -769,10 +782,17 @@ export default function SettingsPage() {
             <div className="flex justify-end pt-1">
               <button
                 type="submit"
-                className="rounded-lg px-6 py-3.5 min-h-12 text-base font-semibold text-white cursor-pointer transition-colors duration-150 bg-[color:var(--color-primary)] hover:bg-[color:var(--color-primary-dark)] disabled:opacity-60 disabled:cursor-not-allowed"
+                className="inline-flex items-center gap-2 rounded-lg px-6 py-3.5 min-h-12 text-base font-semibold text-white cursor-pointer transition-colors duration-150 bg-[color:var(--color-primary)] hover:bg-[color:var(--color-primary-dark)] disabled:opacity-60 disabled:cursor-not-allowed"
                 disabled={emailForm.formState.isSubmitting}
               >
-                {emailForm.formState.isSubmitting ? 'Updating...' : 'Update email'}
+                {emailForm.formState.isSubmitting ? (
+                  <>
+                    <LoadingSpinner />
+                    Updating...
+                  </>
+                ) : (
+                  'Update email'
+                )}
               </button>
             </div>
           </form>
@@ -805,10 +825,17 @@ export default function SettingsPage() {
             <div className="flex justify-end pt-1">
               <button
                 type="submit"
-                className="rounded-lg px-6 py-3.5 min-h-12 text-base font-semibold text-white cursor-pointer transition-colors duration-150 bg-[color:var(--color-primary)] hover:bg-[color:var(--color-primary-dark)] disabled:opacity-60 disabled:cursor-not-allowed"
+                className="inline-flex items-center gap-2 rounded-lg px-6 py-3.5 min-h-12 text-base font-semibold text-white cursor-pointer transition-colors duration-150 bg-[color:var(--color-primary)] hover:bg-[color:var(--color-primary-dark)] disabled:opacity-60 disabled:cursor-not-allowed"
                 disabled={passwordForm.formState.isSubmitting}
               >
-                {passwordForm.formState.isSubmitting ? 'Updating...' : 'Update password'}
+                {passwordForm.formState.isSubmitting ? (
+                  <>
+                    <LoadingSpinner />
+                    Updating...
+                  </>
+                ) : (
+                  'Update password'
+                )}
               </button>
             </div>
           </form>

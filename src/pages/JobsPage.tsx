@@ -3,6 +3,7 @@ import { ChevronRight } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { listJobs } from '../features/jobs/api/jobsApi'
+import TableSkeleton from '../components/TableSkeleton'
 
 export default function JobsPage() {
   const [filter, setFilter] = useState<'all' | 'scheduled' | 'completed'>('all')
@@ -121,9 +122,7 @@ export default function JobsPage() {
         </div>
 
         {isPending ? (
-          <div className="p-6 text-sm" style={{ color: 'var(--crm-content-header-text)', opacity: 0.85 }}>
-            Loading jobs...
-          </div>
+          <TableSkeleton rows={7} columns={5} />
         ) : error ? (
           <div className="p-6 text-sm" style={{ color: 'var(--color-danger)' }}>
             Failed to load jobs. {String((error as Error).message)}

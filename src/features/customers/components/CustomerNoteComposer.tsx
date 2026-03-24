@@ -121,11 +121,7 @@ export default function CustomerNoteComposer({
         {onCancel ? (
           <button
             type="button"
-            className="rounded-md px-4 py-2 text-sm font-semibold border-2 bg-white cursor-pointer transition-colors duration-150 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{
-              color: 'var(--crm-content-header-text, var(--color-foreground))',
-              borderColor: 'hsl(215 22% 72%)',
-            }}
+            className="crm-cancel-btn rounded-md px-4 py-2 text-sm font-semibold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={onCancel}
             disabled={submitting}
           >

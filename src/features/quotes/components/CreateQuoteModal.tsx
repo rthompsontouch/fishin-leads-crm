@@ -251,7 +251,7 @@ export default function CreateQuoteModal({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-md px-3 py-2 text-sm font-semibold border cursor-pointer transition-colors duration-150 border-slate-300 bg-white text-slate-800 hover:bg-slate-100"
+              className="crm-cancel-btn rounded-md px-3 py-2 text-sm font-semibold cursor-pointer"
               disabled={submitting}
             >
               Cancel

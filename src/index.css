@@ -440,6 +440,18 @@ code {
   }
 }
 
+@media (max-width: 767px) {
+  #root .settings-page-header {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  #root .settings-page-header > button {
+    width: auto;
+  }
+}
+
 /* White title bar (e.g. dashboard only while iterating on layout) */
 #root .crm-page-header.crm-page-header--white {
   background: hsl(0 0% 100%);
@@ -448,6 +460,26 @@ code {
 /* Tighter stack under title (e.g. dashboard) */
 #root .crm-page-header.crm-page-header--compact {
   margin-bottom: 0.25rem;
+}
+
+#root .crm-cancel-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  border-width: 2px;
+  border-style: solid;
+  border-color: color-mix(in srgb, var(--color-danger) 55%, hsl(215 22% 82%));
+  color: var(--color-danger);
+  background: #fff;
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease, opacity 150ms ease;
+  text-decoration: none;
+}
+
+#root .crm-cancel-btn:hover:not(:disabled) {
+  background: var(--color-danger);
+  border-color: var(--color-danger);
+  color: #fff;
 }
 
 /* -------------------------------------------------------------------------- */

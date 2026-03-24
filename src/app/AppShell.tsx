@@ -5,6 +5,7 @@ import { getCompanyLogoPublicUrl, getMyProfile } from '../features/account/api/a
 import type { ComponentType } from 'react'
 import {
   Blocks,
+  Bell,
   ChevronDown,
   ChevronRight,
   ClipboardList,
@@ -584,6 +585,15 @@ export default function AppShell() {
             </div>
           </Link>
           <div className="flex items-center gap-2 shrink-0">
+            <Link
+              to="/settings#settings-security"
+              className={`${shellMobileHeaderIconButtonClass} shadow-sm`}
+              style={{ background: 'color-mix(in srgb, var(--color-background) 55%, transparent)' }}
+              aria-label="Notifications"
+              title="Notifications"
+            >
+              <Bell size={24} className="shrink-0 opacity-95" strokeWidth={2.1} />
+            </Link>
             <Link
               to="/settings"
               className={`${shellMobileHeaderIconButtonClass} shadow-sm`}

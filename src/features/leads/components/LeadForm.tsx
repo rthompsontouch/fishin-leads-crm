@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import IndustryCompanySizeFields from '../../../components/IndustryCompanySizeFields'
 import ContactActionButtons from '../../../components/ContactActionButtons'
+import LoadingSpinner from '../../../components/LoadingSpinner'
 import {
   buildCompanySizeOptions,
   CRM_COMPANY_SIZES,
@@ -334,10 +335,17 @@ export default function LeadForm({
       <div className="flex items-end justify-end md:col-span-1">
         <button
           type="submit"
-          className="rounded-md px-4 py-2 text-sm font-semibold text-white cursor-pointer transition-colors duration-150 bg-[color:var(--color-primary)] hover:bg-[color:var(--color-primary-dark)] disabled:opacity-60 disabled:cursor-not-allowed"
+          className="inline-flex items-center gap-2 rounded-md px-4 py-2 text-sm font-semibold text-white cursor-pointer transition-colors duration-150 bg-[color:var(--color-primary)] hover:bg-[color:var(--color-primary-dark)] disabled:opacity-60 disabled:cursor-not-allowed"
           disabled={form.formState.isSubmitting}
         >
-          {form.formState.isSubmitting ? 'Saving...' : submitLabel}
+          {form.formState.isSubmitting ? (
+            <>
+              <LoadingSpinner />
+              Saving...
+            </>
+          ) : (
+            submitLabel
+          )}
         </button>
       </div>
     </form>
