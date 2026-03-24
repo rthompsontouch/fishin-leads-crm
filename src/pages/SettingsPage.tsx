@@ -34,6 +34,7 @@ import {
   resolveIndustryFromForm,
   splitIndustryForForm,
 } from '../lib/crmFieldOptions'
+import { getAutoMergeMatchingLeads, setAutoMergeMatchingLeads } from '../lib/leadMergePreferences'
 
 const settingsCardClass =
   'rounded-xl bg-white p-6 sm:p-7 shadow-sm ring-1 ring-black/5'
@@ -133,7 +134,12 @@ export default function SettingsPage() {
   const [emailModalOpen, setEmailModalOpen] = useState(false)
   const [passwordModalOpen, setPasswordModalOpen] = useState(false)
   const [upgradeModalOpen, setUpgradeModalOpen] = useState(false)
+  const [autoMergeMatchingLeads, setAutoMergeMatchingLeadsState] = useState(false)
   const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined
+
+  useEffect(() => {
+    setAutoMergeMatchingLeadsState(getAutoMergeMatchingLeads())
+  }, [])
 
   useEffect(() => {
     if (location.pathname !== '/settings') return
@@ -524,6 +530,31 @@ export default function SettingsPage() {
                     </span>
                   )}
                 </div>
+              </div>
+
+              <div className={`${settingsInsetClass} md:col-span-2`} style={insetBorderStyle}>
+                <div className="text-sm font-semibold" style={{ color: 'var(--crm-content-header-text)' }}>
+                  Lead conversion
+                </div>
+                <p className="text-xs text-slate-600 mt-1 mb-3 leading-relaxed m-0">
+                  When you convert a lead to a customer, we can match on email or phone. If a match exists,
+                  choose merge or a new customer on the lead page — or enable auto-merge below.
+                </p>
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="mt-1 h-4 w-4 shrink-0 rounded border-slate-300"
+                    checked={autoMergeMatchingLeads}
+                    onChange={(e) => {
+                      const v = e.target.checked
+                      setAutoMergeMatchingLeads(v)
+                      setAutoMergeMatchingLeadsState(v)
+                    }}
+                  />
+                  <span className="text-sm text-slate-700 leading-snug">
+                    Automatically merge converted leads when email or phone matches an existing customer
+                  </span>
+                </label>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:col-span-2">

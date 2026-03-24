@@ -2,6 +2,8 @@ import { Link } from 'react-router-dom'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Bell, Calendar, Download } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
+import NotificationsPanel from '../components/NotificationsPanel'
+import { countUnreadNotifications, useNotificationReads } from '../lib/notificationReadState'
 import DashboardCharts from '../features/dashboard/components/DashboardCharts'
 import {
   listCustomers,
@@ -48,6 +50,7 @@ export default function DashboardPage() {
   const [statsPeriod, setStatsPeriod] = useState<DashboardStatsPeriod>('week')
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
   const notificationsRef = useRef<HTMLDivElement | null>(null)
+  const { reads, markRead } = useNotificationReads()
 
   const {
     data: leads,
@@ -224,16 +227,9 @@ export default function DashboardPage() {
     'crm-dashboard-export-stats inline-flex items-center justify-center gap-2 rounded-sm px-3 py-2 text-sm font-semibold cursor-pointer'
 
   const nowTs = Date.now()
-  const notificationLeads = (recentNotificationLeads ?? []).slice(0, 4)
-  const notificationJobs = (upcomingJobs ?? []).slice(0, 4)
-  const dueReminderCount = notificationJobs.filter((job) => {
-    if (!job.reminder_at || job.reminder_sent_at) return false
-    return new Date(job.reminder_at).getTime() <= nowTs
-  }).length
-  const freshLeadCount = notificationLeads.filter(
-    (lead) => nowTs - new Date(lead.created_at).getTime() <= 24 * 60 * 60 * 1000,
-  ).length
-  const notificationBadgeCount = freshLeadCount + dueReminderCount
+  const notificationLeads = (recentNotificationLeads ?? []).slice(0, 6)
+  const notificationJobs = (upcomingJobs ?? []).slice(0, 6)
+  const notificationBadgeCount = countUnreadNotifications(reads, notificationLeads, notificationJobs, nowTs)
 
   useEffect(() => {
     if (!isNotificationsOpen) return
@@ -317,58 +313,26 @@ export default function DashboardPage() {
             </button>
             {isNotificationsOpen ? (
               <div
-                className="absolute right-0 top-[calc(100%+0.45rem)] z-30 w-80 rounded-xl border bg-white p-3 shadow-xl"
+                className="absolute right-0 top-[calc(100%+0.45rem)] z-30 w-80 rounded-lg border bg-white shadow-xl overflow-hidden"
                 style={{ borderColor: 'var(--color-border)', color: 'var(--crm-content-header-text)' }}
               >
-                <div className="flex items-center justify-between gap-2 pb-2">
+                <div className="flex items-center justify-between gap-2 px-3 py-2.5 border-b border-slate-200 bg-white">
                   <div className="text-sm font-semibold">Notifications</div>
-                  {(notificationBadgeCount > 0 || notificationsPending) && (
-                    <div className="text-xs text-slate-500">
-                      {notificationsPending ? 'Refreshing...' : `${notificationBadgeCount} new`}
-                    </div>
-                  )}
-                </div>
-                <div className="max-h-[55dvh] space-y-2 overflow-y-auto pr-1 crm-scrollbar">
-                  {notificationLeads.map((lead) => (
-                    <Link
-                      key={`dashboard-lead-${lead.id}`}
-                      to={`/leads/${lead.id}`}
-                      className="block rounded-lg border px-3 py-2.5 text-sm no-underline transition-colors hover:bg-slate-50"
-                      style={{ borderColor: 'hsl(215 20% 88%)', color: 'inherit' }}
-                      onClick={() => setIsNotificationsOpen(false)}
-                    >
-                      <div className="font-semibold">Incoming lead</div>
-                      <div className="text-xs text-slate-600 truncate">
-                        {[lead.first_name, lead.last_name].filter(Boolean).join(' ') ||
-                          lead.company ||
-                          'New lead'}
-                      </div>
-                    </Link>
-                  ))}
-                  {notificationJobs.map((job) => (
-                    <Link
-                      key={`dashboard-job-${job.id}`}
-                      to={`/jobs/${job.id}`}
-                      className="block rounded-lg border px-3 py-2.5 text-sm no-underline transition-colors hover:bg-slate-50"
-                      style={{ borderColor: 'hsl(215 20% 88%)', color: 'inherit' }}
-                      onClick={() => setIsNotificationsOpen(false)}
-                    >
-                      <div className="font-semibold">
-                        {job.reminder_at && !job.reminder_sent_at && new Date(job.reminder_at).getTime() <= nowTs
-                          ? 'Job reminder due'
-                          : 'Upcoming job'}
-                      </div>
-                      <div className="text-xs text-slate-600 truncate">
-                        Scheduled for {job.scheduled_date}
-                      </div>
-                    </Link>
-                  ))}
-                  {!notificationsPending && notificationLeads.length === 0 && notificationJobs.length === 0 ? (
-                    <div className="rounded-lg border border-slate-200 px-3 py-2.5 text-sm text-slate-600">
-                      No new notifications right now.
-                    </div>
+                  {notificationsPending ? (
+                    <div className="text-xs text-slate-500">Refreshing…</div>
+                  ) : notificationBadgeCount > 0 ? (
+                    <div className="text-xs font-semibold text-slate-600">{notificationBadgeCount} new</div>
                   ) : null}
                 </div>
+                <NotificationsPanel
+                  leads={notificationLeads}
+                  jobs={notificationJobs}
+                  reads={reads}
+                  nowTs={nowTs}
+                  onMarkRead={markRead}
+                  onNavigate={() => setIsNotificationsOpen(false)}
+                  pending={notificationsPending}
+                />
               </div>
             ) : null}
           </div>

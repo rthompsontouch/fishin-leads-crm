@@ -28,6 +28,8 @@ import {
   pickSidebarLogoFile,
   publicAssetUrl,
 } from '../lib/publicBrand'
+import NotificationsPanel from '../components/NotificationsPanel'
+import { countUnreadNotifications, useNotificationReads } from '../lib/notificationReadState'
 
 type NavIcon = ComponentType<{ size?: number; className?: string }>
 
@@ -269,16 +271,10 @@ export default function AppShell() {
   })
 
   const nowTs = Date.now()
-  const recentLeads = (notificationData?.leads ?? []).slice(0, 4)
-  const upcomingJobs = (notificationData?.jobs ?? []).slice(0, 4)
-  const dueReminderCount = upcomingJobs.filter((job) => {
-    if (!job.reminder_at || job.reminder_sent_at) return false
-    return new Date(job.reminder_at).getTime() <= nowTs
-  }).length
-  const freshLeadCount = recentLeads.filter(
-    (lead) => nowTs - new Date(lead.created_at).getTime() <= 24 * 60 * 60 * 1000,
-  ).length
-  const notificationBadgeCount = freshLeadCount + dueReminderCount
+  const recentLeads = (notificationData?.leads ?? []).slice(0, 6)
+  const upcomingJobs = (notificationData?.jobs ?? []).slice(0, 6)
+  const { reads, markRead } = useNotificationReads()
+  const notificationBadgeCount = countUnreadNotifications(reads, recentLeads, upcomingJobs, nowTs)
 
   const companyLogoUrl = useMemo(
     () => getCompanyLogoPublicUrl(profile?.company_logo_path),
@@ -657,58 +653,26 @@ export default function AppShell() {
             </button>
             {isNotificationsOpen ? (
               <div
-                className="absolute right-0 top-[calc(100%+0.45rem)] z-[70] w-[min(calc(100vw-1rem),22rem)] rounded-xl border bg-white p-3 shadow-xl"
+                className="absolute right-0 top-[calc(100%+0.45rem)] z-[70] w-[min(calc(100vw-1rem),22rem)] rounded-lg border bg-white shadow-xl overflow-hidden"
                 style={{ borderColor: 'var(--color-border)', color: 'var(--crm-content-header-text)' }}
               >
-                <div className="flex items-center justify-between gap-2 pb-2">
+                <div className="flex items-center justify-between gap-2 px-3 py-2.5 border-b border-slate-200 bg-white">
                   <div className="text-sm font-semibold">Notifications</div>
-                  {(notificationBadgeCount > 0 || notificationsPending) && (
-                    <div className="text-xs text-slate-500">
-                      {notificationsPending ? 'Refreshing...' : `${notificationBadgeCount} new`}
-                    </div>
-                  )}
-                </div>
-                <div className="max-h-[55dvh] space-y-2 overflow-y-auto pr-1 crm-scrollbar">
-                  {recentLeads.map((lead) => (
-                    <Link
-                      key={`lead-${lead.id}`}
-                      to={`/leads/${lead.id}`}
-                      className="block rounded-lg border px-3 py-2.5 text-sm no-underline transition-colors hover:bg-slate-50"
-                      style={{ borderColor: 'hsl(215 20% 88%)', color: 'inherit' }}
-                      onClick={() => setIsNotificationsOpen(false)}
-                    >
-                      <div className="font-semibold">Incoming lead</div>
-                      <div className="text-xs text-slate-600 truncate">
-                        {[lead.first_name, lead.last_name].filter(Boolean).join(' ') ||
-                          lead.company ||
-                          'New lead'}
-                      </div>
-                    </Link>
-                  ))}
-                  {upcomingJobs.map((job) => (
-                    <Link
-                      key={`job-${job.id}`}
-                      to={`/jobs/${job.id}`}
-                      className="block rounded-lg border px-3 py-2.5 text-sm no-underline transition-colors hover:bg-slate-50"
-                      style={{ borderColor: 'hsl(215 20% 88%)', color: 'inherit' }}
-                      onClick={() => setIsNotificationsOpen(false)}
-                    >
-                      <div className="font-semibold">
-                        {job.reminder_at && !job.reminder_sent_at && new Date(job.reminder_at).getTime() <= nowTs
-                          ? 'Job reminder due'
-                          : 'Upcoming job'}
-                      </div>
-                      <div className="text-xs text-slate-600 truncate">
-                        Scheduled for {job.scheduled_date}
-                      </div>
-                    </Link>
-                  ))}
-                  {!notificationsPending && recentLeads.length === 0 && upcomingJobs.length === 0 ? (
-                    <div className="rounded-lg border border-slate-200 px-3 py-2.5 text-sm text-slate-600">
-                      No new notifications right now.
-                    </div>
+                  {notificationsPending ? (
+                    <div className="text-xs text-slate-500">Refreshing…</div>
+                  ) : notificationBadgeCount > 0 ? (
+                    <div className="text-xs font-semibold text-slate-600">{notificationBadgeCount} new</div>
                   ) : null}
                 </div>
+                <NotificationsPanel
+                  leads={recentLeads}
+                  jobs={upcomingJobs}
+                  reads={reads}
+                  nowTs={nowTs}
+                  onMarkRead={markRead}
+                  onNavigate={() => setIsNotificationsOpen(false)}
+                  pending={notificationsPending}
+                />
               </div>
             ) : null}
             <Link

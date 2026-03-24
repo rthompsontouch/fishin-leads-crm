@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
-import { ChevronRight, Pencil, StickyNote, Trash2 } from 'lucide-react'
+import { ChevronRight, Pencil, Plus, Trash2 } from 'lucide-react'
 import ConfirmDialog from '../components/ConfirmDialog'
+import CrmModal from '../components/CrmModal'
 import ModalScrollBackdrop from '../components/ModalScrollBackdrop'
 import NoteSummaryCard from '../components/NoteSummaryCard'
 import NotesDatabaseSetupHint from '../components/NotesDatabaseSetupHint'
@@ -16,8 +17,14 @@ import {
   deleteLeadNote,
   getLeadById,
   listLeadNotes,
+  mergeLeadIntoCustomer,
   updateLead,
 } from '../features/leads/api/leadsApi'
+import {
+  findCustomersByEmailOrPhone,
+  type CustomerRow,
+} from '../features/customers/api/customersApi'
+import { getAutoMergeMatchingLeads } from '../lib/leadMergePreferences'
 import {
   listQuotesByLead,
   sendQuote,
@@ -99,11 +106,50 @@ export default function LeadDetailsPage() {
   const [quotesExpanded, setQuotesExpanded] = useState(false)
   const [notesExpanded, setNotesExpanded] = useState(false)
   const [addNoteModalOpen, setAddNoteModalOpen] = useState(false)
+  const [duplicateConvertCustomers, setDuplicateConvertCustomers] = useState<CustomerRow[] | null>(
+    null,
+  )
+  const [duplicateConvertBusy, setDuplicateConvertBusy] = useState(false)
 
   const filteredNotes = useMemo(() => {
     if (!notes) return []
     return notes.filter((n) => noteMatchesSearch(n.title, n.body, n.type, noteSearch))
   }, [notes, noteSearch])
+
+  async function handleConvertLeadConfirm() {
+    if (!lead) return
+    setSaving(true)
+    try {
+      const matches = await findCustomersByEmailOrPhone({
+        email: lead.email,
+        phone: lead.phone,
+      })
+      if (matches.length > 0) {
+        if (getAutoMergeMatchingLeads()) {
+          const customer = await mergeLeadIntoCustomer(lead.id, matches[0]!.id)
+          await Promise.all([
+            queryClient.invalidateQueries({ queryKey: ['customers'], exact: false }),
+            queryClient.invalidateQueries({ queryKey: ['leads'], exact: false }),
+          ])
+          navigate(`/customers/${customer.id}`)
+          return
+        }
+        setDuplicateConvertCustomers(matches)
+        return
+      }
+      const customer = await convertLeadToCustomer(lead.id)
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['customers'], exact: false }),
+        queryClient.invalidateQueries({ queryKey: ['leads'], exact: false }),
+      ])
+      navigate(`/customers/${customer.id}`)
+    } catch (e) {
+      alert(String((e as Error).message ?? e))
+      throw e
+    } finally {
+      setSaving(false)
+    }
+  }
 
   const name = lead
     ? [lead.first_name, lead.last_name].filter(Boolean).join(' ')
@@ -516,12 +562,12 @@ export default function LeadDetailsPage() {
 
         <div className="rounded-xl bg-white shadow-sm ring-1 ring-black/5 overflow-hidden flex flex-col min-h-0">
           <div
-            className="px-4 py-3 border-b shrink-0 bg-slate-100"
+            className="px-3 sm:px-4 py-3 border-b shrink-0 bg-slate-100 flex flex-row items-stretch gap-2"
             style={{ borderColor: 'hsl(215 20% 88%)' }}
           >
             <button
               type="button"
-              className="flex w-full items-start gap-2 rounded-sm text-left transition-colors hover:bg-slate-200/60 -m-1 p-1 sm:items-center"
+              className="flex min-w-0 flex-1 items-start gap-2 rounded-sm text-left transition-colors hover:bg-slate-200/60 -m-1 p-1 sm:items-center"
               onClick={() => setNotesExpanded((v) => !v)}
               aria-expanded={notesExpanded}
               aria-controls="lead-notes-panel"
@@ -548,35 +594,34 @@ export default function LeadDetailsPage() {
                 </span>
               </div>
             </button>
+            <button
+              type="button"
+              className="inline-flex shrink-0 items-center justify-center self-center rounded-lg min-h-10 min-w-10 px-3 text-white font-semibold cursor-pointer transition-colors duration-150 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+              onClick={() => setAddNoteModalOpen(true)}
+              disabled={!lead || isLeadPending}
+              aria-label="Add note"
+              title="Add note"
+            >
+              <Plus size={22} strokeWidth={2.5} className="shrink-0" aria-hidden />
+            </button>
           </div>
 
           {notesExpanded ? (
             <div id="lead-notes-panel" className="p-4 sm:p-5 flex flex-col flex-1 min-h-0" role="region" aria-labelledby="lead-notes-toggle">
               {isValidUuid ? (
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3 mb-3">
-                  <div className="w-full min-w-0 sm:flex-1">
-                    {notes && notes.length > 0 ? (
-                      <input
-                        value={noteSearch}
-                        onChange={(e) => setNoteSearch(e.target.value)}
-                        placeholder="Search notes by title, body, or type…"
-                        className="w-full rounded-md border-2 bg-white px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-primary)] focus-visible:ring-offset-1 placeholder:text-slate-500"
-                        style={{
-                          borderColor: 'hsl(215 22% 72%)',
-                          color: 'var(--crm-content-header-text)',
-                        }}
-                      />
-                    ) : null}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setAddNoteModalOpen(true)}
-                    disabled={isLeadPending}
-                    className="inline-flex shrink-0 w-full sm:w-auto items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-semibold text-white cursor-pointer transition-colors duration-150 bg-[color:var(--color-primary)] hover:bg-[color:var(--color-primary-dark)] disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <StickyNote size={18} className="shrink-0 opacity-95" strokeWidth={2.25} aria-hidden />
-                    Add note
-                  </button>
+                <div className="mb-3">
+                  {notes && notes.length > 0 ? (
+                    <input
+                      value={noteSearch}
+                      onChange={(e) => setNoteSearch(e.target.value)}
+                      placeholder="Search notes by title, body, or type…"
+                      className="w-full rounded-md border-2 bg-white px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-primary)] focus-visible:ring-offset-1 placeholder:text-slate-500"
+                      style={{
+                        borderColor: 'hsl(215 22% 72%)',
+                        color: 'var(--crm-content-header-text)',
+                      }}
+                    />
+                  ) : null}
                 </div>
               ) : null}
 
@@ -618,7 +663,7 @@ export default function LeadDetailsPage() {
                   <div className="text-sm text-slate-600">No notes match your search.</div>
                 )
               ) : (
-                <div className="text-sm text-slate-600">No notes yet. Use Add note above.</div>
+                <div className="text-sm text-slate-600">No notes yet. Use the + button above.</div>
               )}
             </div>
           ) : null}
@@ -731,24 +776,97 @@ export default function LeadDetailsPage() {
         title="Convert to customer?"
         confirmLabel="Convert"
         description="A customer will be created, your latest lead notes (up to 4) will carry over, and this lead will be linked to the customer."
-        onConfirm={async () => {
-          if (!lead) return
-          setSaving(true)
-          try {
-            const customer = await convertLeadToCustomer(lead.id)
-            await Promise.all([
-              queryClient.invalidateQueries({ queryKey: ['customers'] }),
-              queryClient.invalidateQueries({ queryKey: ['leads'] }),
-            ])
-            navigate(`/customers/${customer.id}`)
-          } catch (e) {
-            alert(String((e as Error).message ?? e))
-            throw e
-          } finally {
-            setSaving(false)
-          }
-        }}
+        onConfirm={handleConvertLeadConfirm}
       />
+
+      <CrmModal
+        open={Boolean(duplicateConvertCustomers && duplicateConvertCustomers.length > 0 && lead)}
+        title="It looks like this customer already exists!"
+        wide
+        onClose={() => {
+          if (!duplicateConvertBusy) setDuplicateConvertCustomers(null)
+        }}
+      >
+        <div className="space-y-4 text-slate-800">
+          <p className="text-sm text-slate-600 m-0 leading-relaxed">
+            Choose to either merge this lead with an existing customer or convert to a new customer.
+          </p>
+          {duplicateConvertCustomers && duplicateConvertCustomers.length > 0 ? (
+            <ul className="m-0 list-none space-y-2 p-0 text-sm">
+              {duplicateConvertCustomers.map((c) => (
+                <li
+                  key={c.id}
+                  className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2"
+                >
+                  <span className="font-semibold">{c.name}</span>
+                  {c.primary_email ? (
+                    <span className="block text-xs text-slate-600 mt-0.5 tabular-nums">{c.primary_email}</span>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          ) : null}
+          {duplicateConvertCustomers && duplicateConvertCustomers.length > 1 ? (
+            <p className="text-xs text-slate-500 m-0">
+              Multiple matches — merge uses the first listed unless you create a new customer instead.
+            </p>
+          ) : null}
+          <div className="flex flex-col-reverse sm:flex-row sm:flex-wrap sm:justify-end gap-2 pt-1">
+            <button
+              type="button"
+              className="crm-cancel-btn rounded-lg px-4 py-2.5 text-sm font-semibold cursor-pointer disabled:opacity-50"
+              disabled={duplicateConvertBusy || !lead || !duplicateConvertCustomers?.[0]}
+              onClick={() => {
+                if (!lead || !duplicateConvertCustomers?.[0]) return
+                void (async () => {
+                  setDuplicateConvertBusy(true)
+                  try {
+                    const customer = await convertLeadToCustomer(lead.id)
+                    await Promise.all([
+                      queryClient.invalidateQueries({ queryKey: ['customers'], exact: false }),
+                      queryClient.invalidateQueries({ queryKey: ['leads'], exact: false }),
+                    ])
+                    setDuplicateConvertCustomers(null)
+                    navigate(`/customers/${customer.id}`)
+                  } catch (e) {
+                    alert(String((e as Error).message ?? e))
+                  } finally {
+                    setDuplicateConvertBusy(false)
+                  }
+                })()
+              }}
+            >
+              {duplicateConvertBusy ? 'Working…' : 'Convert to new customer'}
+            </button>
+            <button
+              type="button"
+              className="rounded-lg px-4 py-2.5 text-sm font-semibold text-white cursor-pointer transition-colors duration-150 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={duplicateConvertBusy || !lead || !duplicateConvertCustomers?.[0]}
+              onClick={() => {
+                if (!lead || !duplicateConvertCustomers?.[0]) return
+                void (async () => {
+                  setDuplicateConvertBusy(true)
+                  try {
+                    const customer = await mergeLeadIntoCustomer(lead.id, duplicateConvertCustomers[0]!.id)
+                    await Promise.all([
+                      queryClient.invalidateQueries({ queryKey: ['customers'], exact: false }),
+                      queryClient.invalidateQueries({ queryKey: ['leads'], exact: false }),
+                    ])
+                    setDuplicateConvertCustomers(null)
+                    navigate(`/customers/${customer.id}`)
+                  } catch (e) {
+                    alert(String((e as Error).message ?? e))
+                  } finally {
+                    setDuplicateConvertBusy(false)
+                  }
+                })()
+              }}
+            >
+              {duplicateConvertBusy ? 'Working…' : `Merge with ${duplicateConvertCustomers?.[0]?.name ?? 'customer'}`}
+            </button>
+          </div>
+        </div>
+      </CrmModal>
 
       <ConfirmDialog
         open={leadNoteToDelete !== null}
@@ -899,7 +1017,7 @@ function LeadNoteComposer({
         ) : null}
         <button
           type="submit"
-          className="rounded-md px-4 py-2 text-sm font-semibold text-white cursor-pointer transition-colors duration-150 bg-[color:var(--color-primary)] hover:bg-[color:var(--color-primary-dark)] disabled:opacity-60 disabled:cursor-not-allowed"
+          className="rounded-md px-4 py-2 text-sm font-semibold text-white cursor-pointer transition-colors duration-150 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed"
           disabled={submitting}
         >
           {submitting ? 'Adding...' : 'Add note'}
