@@ -1,4 +1,4 @@
-import type { Database } from '../../../lib/supabase.types'
+import { Constants, type Database } from '../../../lib/supabase.types'
 import {
   isMissingNotesTitleColumnError,
   normalizeLeadNoteRow,
@@ -49,6 +49,19 @@ function normalizeLeadSearchTerm(raw: string): string {
     .trim()
 }
 
+const LEAD_STATUS_SEARCH_VALUES = Constants.public.Enums.lead_status as readonly string[]
+
+/** Postgres enums cannot use ILIKE; match the search term against known labels and use `status.in`. */
+function leadStatusesMatchingSearch(term: string): string[] {
+  const t = term.trim().toLowerCase()
+  if (!t) return []
+  return LEAD_STATUS_SEARCH_VALUES.filter((s) => {
+    const sl = s.toLowerCase()
+    if (t.length === 1) return sl.startsWith(t)
+    return sl.includes(t)
+  })
+}
+
 type LeadListQueryOps<Q> = Q & {
   is: (column: string, value: null) => Q
   or: (filters: string) => Q
@@ -65,9 +78,19 @@ function applyLeadListFilters<Q>(
   const term = normalizeLeadSearchTerm(opts.search ?? '')
   if (term) {
     const p = `%${term}%`
-    q = (q as LeadListQueryOps<Q>).or(
-      `first_name.ilike.${p},last_name.ilike.${p},company.ilike.${p},email.ilike.${p},phone.ilike.${p},status.ilike.${p},source.ilike.${p}`,
-    )
+    const parts = [
+      `first_name.ilike.${p}`,
+      `last_name.ilike.${p}`,
+      `company.ilike.${p}`,
+      `email.ilike.${p}`,
+      `phone.ilike.${p}`,
+      `source.ilike.${p}`,
+    ]
+    const statusHits = leadStatusesMatchingSearch(term)
+    if (statusHits.length > 0) {
+      parts.push(`status.in.(${statusHits.join(',')})`)
+    }
+    q = (q as LeadListQueryOps<Q>).or(parts.join(','))
   }
   return q
 }

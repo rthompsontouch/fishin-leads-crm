@@ -425,6 +425,9 @@ export type Database = {
         | "Unqualified"
         | "ClosedWon"
         | "ClosedLost"
+        | "Quoted"
+        | "Won"
+        | "Lost"
       note_type: "note" | "call" | "email_sent" | "meeting" | "other"
     }
     CompositeTypes: {
@@ -562,6 +565,9 @@ export const Constants = {
         "Unqualified",
         "ClosedWon",
         "ClosedLost",
+        "Quoted",
+        "Won",
+        "Lost",
       ],
       note_type: ["note", "call", "email_sent", "meeting", "other"],
     },

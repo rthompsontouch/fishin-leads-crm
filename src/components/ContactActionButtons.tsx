@@ -9,7 +9,7 @@ const linkClassTable =
 
 /** Icon-only on small screens (Leads table mobile). */
 const linkClassTableIconOnly =
-  'crm-contact-link crm-contact-link--dark inline-flex items-center justify-center rounded-md min-h-10 min-w-10 md:min-h-10 md:min-w-[4.25rem] md:gap-1.5 md:px-3 md:py-2 text-sm font-semibold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:ring-offset-1 focus-visible:ring-offset-[color:var(--color-background)] shrink-0'
+  'crm-contact-link crm-contact-link--dark inline-flex items-center justify-center rounded-md max-md:w-full max-md:min-h-11 max-md:min-w-0 max-md:px-2 min-h-10 min-w-10 md:min-h-10 md:w-auto md:min-w-[4.25rem] md:gap-1.5 md:px-3 md:py-2 text-sm font-semibold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:ring-offset-1 focus-visible:ring-offset-[color:var(--color-background)] shrink-0'
 
 /** Build `tel:` href from stored phone (digits and leading + kept). */
 export function telHref(phone: string | null | undefined): string | null {

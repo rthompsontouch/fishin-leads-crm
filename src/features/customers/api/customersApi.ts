@@ -1,4 +1,4 @@
-import type { Database } from '../../../lib/supabase.types'
+import { Constants, type Database } from '../../../lib/supabase.types'
 import {
   isMissingNotesTitleColumnError,
   normalizeCustomerNoteRow,
@@ -136,15 +136,39 @@ function normalizeCustomerSearchTerm(raw: string): string {
     .trim()
 }
 
+const CUSTOMER_STATUS_SEARCH_VALUES = Constants.public.Enums.customer_status as readonly string[]
+
+function customerStatusesMatchingSearch(term: string): string[] {
+  const t = term.trim().toLowerCase()
+  if (!t) return []
+  return CUSTOMER_STATUS_SEARCH_VALUES.filter((s) => {
+    const sl = s.toLowerCase()
+    if (t.length === 1) return sl.startsWith(t)
+    return sl.includes(t)
+  })
+}
+
 function applyCustomerSearchFilters<Q>(query: Q, search?: string): Q {
   let q = query
   const term = normalizeCustomerSearchTerm(search ?? '')
   if (term) {
     const p = `%${term}%`
+    const parts = [
+      `name.ilike.${p}`,
+      `primary_first_name.ilike.${p}`,
+      `primary_last_name.ilike.${p}`,
+      `primary_email.ilike.${p}`,
+      `primary_phone.ilike.${p}`,
+      `email.ilike.${p}`,
+      `phone.ilike.${p}`,
+      `industry.ilike.${p}`,
+    ]
+    const statusHits = customerStatusesMatchingSearch(term)
+    if (statusHits.length > 0) {
+      parts.push(`status.in.(${statusHits.join(',')})`)
+    }
     const builder = q as Q & { or: (filters: string) => Q }
-    q = builder.or(
-      `name.ilike.${p},primary_first_name.ilike.${p},primary_last_name.ilike.${p},primary_email.ilike.${p},primary_phone.ilike.${p},email.ilike.${p},phone.ilike.${p},industry.ilike.${p},status.ilike.${p}`,
-    )
+    q = builder.or(parts.join(','))
   }
   return q
 }

@@ -244,7 +244,7 @@ export default function LeadsPage() {
         </div>
 
         <div
-          className="grid max-md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_auto] md:grid-cols-7 gap-2 bg-slate-100 p-3 text-sm font-semibold"
+          className="grid max-md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] md:grid-cols-7 gap-2 bg-slate-100 p-3 text-sm font-semibold"
           style={{ color: 'var(--crm-content-header-text)' }}
         >
           <div className="truncate min-w-0">Name</div>
@@ -303,7 +303,7 @@ export default function LeadsPage() {
                   <div
                     key={lead.id}
                     className={[
-                      'grid max-md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_auto] md:grid-cols-7 gap-2 px-3 py-3 min-h-[3.25rem] items-center border-b transition-colors',
+                      'grid max-md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] md:grid-cols-7 gap-2 px-3 py-3 min-h-[3.25rem] items-center border-b transition-colors',
                       stripe,
                       'hover:bg-slate-100/90',
                       isLast ? 'border-b-0' : '',
@@ -320,10 +320,10 @@ export default function LeadsPage() {
                     <div className="hidden md:block truncate text-sm text-slate-700 min-w-0">
                       {lead.company || '—'}
                     </div>
-                    <div className="min-w-0 flex items-center justify-center md:justify-start">
+                    <div className="min-w-0 flex w-full items-center md:justify-start">
                       <EmailLinkCell email={lead.email} contactLabel={label} iconOnlyMobile />
                     </div>
-                    <div className="min-w-0 flex items-center justify-center md:justify-start">
+                    <div className="min-w-0 flex w-full items-center md:justify-start">
                       <CallLinkCell phone={lead.phone} iconOnlyMobile />
                     </div>
                     <div className="flex min-w-0 items-center justify-end md:justify-start">
@@ -339,7 +339,7 @@ export default function LeadsPage() {
                         </span>
                       </span>
                       <span
-                        className="md:hidden inline-flex h-3 w-3 shrink-0 rounded-full border border-black/10"
+                        className="md:hidden inline-flex h-5 w-5 shrink-0 rounded-full border border-black/15"
                         style={{ background: statusColor }}
                         title={lead.status}
                         aria-label={`Status: ${lead.status}`}
