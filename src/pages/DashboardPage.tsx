@@ -1,13 +1,13 @@
 import { Link } from 'react-router-dom'
-import { useMemo, useState } from 'react'
-import { Calendar, Download } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Bell, Calendar, Download } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import DashboardCharts from '../features/dashboard/components/DashboardCharts'
 import {
   listCustomers,
   listServiceEntriesForOwner,
 } from '../features/customers/api/customersApi'
-import { listLeads } from '../features/leads/api/leadsApi'
+import { listLeads, listLeadsPaged } from '../features/leads/api/leadsApi'
 import { listUpcomingJobs } from '../features/jobs/api/jobsApi'
 import {
   listQuotesForDashboard,
@@ -46,6 +46,8 @@ function quoteOutcomeInPeriod(
 
 export default function DashboardPage() {
   const [statsPeriod, setStatsPeriod] = useState<DashboardStatsPeriod>('week')
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
+  const notificationsRef = useRef<HTMLDivElement | null>(null)
 
   const {
     data: leads,
@@ -63,6 +65,18 @@ export default function DashboardPage() {
   } = useQuery({
     queryKey: ['customers'],
     queryFn: () => listCustomers(),
+  })
+
+  const {
+    data: recentNotificationLeads,
+    isPending: notificationsPending,
+  } = useQuery({
+    queryKey: ['dashboard-notification-leads'],
+    queryFn: async () => {
+      const page = await listLeadsPaged({ page: 1, pageSize: 6 })
+      return page.rows
+    },
+    refetchInterval: 60_000,
   })
 
   const {
@@ -209,6 +223,38 @@ export default function DashboardPage() {
   const exportBtnClass =
     'crm-dashboard-export-stats inline-flex items-center justify-center gap-2 rounded-sm px-3 py-2 text-sm font-semibold cursor-pointer'
 
+  const nowTs = Date.now()
+  const notificationLeads = (recentNotificationLeads ?? []).slice(0, 4)
+  const notificationJobs = (upcomingJobs ?? []).slice(0, 4)
+  const dueReminderCount = notificationJobs.filter((job) => {
+    if (!job.reminder_at || job.reminder_sent_at) return false
+    return new Date(job.reminder_at).getTime() <= nowTs
+  }).length
+  const freshLeadCount = notificationLeads.filter(
+    (lead) => nowTs - new Date(lead.created_at).getTime() <= 24 * 60 * 60 * 1000,
+  ).length
+  const notificationBadgeCount = freshLeadCount + dueReminderCount
+
+  useEffect(() => {
+    if (!isNotificationsOpen) return
+    function handleClickOutside(event: MouseEvent) {
+      const target = event.target as Node | null
+      if (!target) return
+      if (!notificationsRef.current?.contains(target)) {
+        setIsNotificationsOpen(false)
+      }
+    }
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape') setIsNotificationsOpen(false)
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    document.addEventListener('keydown', handleEscape)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('keydown', handleEscape)
+    }
+  }, [isNotificationsOpen])
+
   return (
     <div className="flex flex-col gap-4">
       <div className="crm-page-header crm-page-header--white crm-page-header--compact">
@@ -249,6 +295,83 @@ export default function DashboardPage() {
             Export stats
             <Download size={18} className="shrink-0 opacity-95" aria-hidden />
           </button>
+          <div ref={notificationsRef} className="relative max-md:hidden">
+            <button
+              type="button"
+              className="crm-dashboard-export-stats relative inline-flex items-center justify-center gap-2 rounded-sm px-3 py-2 text-sm font-semibold cursor-pointer"
+              onClick={() => setIsNotificationsOpen((v) => !v)}
+              aria-label="Notifications"
+              aria-expanded={isNotificationsOpen}
+              title="Notifications"
+            >
+              <Bell size={18} className="shrink-0 opacity-95" aria-hidden />
+              Notifications
+              {notificationBadgeCount > 0 ? (
+                <span
+                  className="absolute -right-1 -top-1 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full px-1 text-[11px] font-bold leading-none text-white"
+                  style={{ background: 'var(--color-danger)' }}
+                >
+                  {notificationBadgeCount > 9 ? '9+' : notificationBadgeCount}
+                </span>
+              ) : null}
+            </button>
+            {isNotificationsOpen ? (
+              <div
+                className="absolute right-0 top-[calc(100%+0.45rem)] z-30 w-80 rounded-xl border bg-white p-3 shadow-xl"
+                style={{ borderColor: 'var(--color-border)', color: 'var(--crm-content-header-text)' }}
+              >
+                <div className="flex items-center justify-between gap-2 pb-2">
+                  <div className="text-sm font-semibold">Notifications</div>
+                  {(notificationBadgeCount > 0 || notificationsPending) && (
+                    <div className="text-xs text-slate-500">
+                      {notificationsPending ? 'Refreshing...' : `${notificationBadgeCount} new`}
+                    </div>
+                  )}
+                </div>
+                <div className="max-h-[55dvh] space-y-2 overflow-y-auto pr-1 crm-scrollbar">
+                  {notificationLeads.map((lead) => (
+                    <Link
+                      key={`dashboard-lead-${lead.id}`}
+                      to={`/leads/${lead.id}`}
+                      className="block rounded-lg border px-3 py-2.5 text-sm no-underline transition-colors hover:bg-slate-50"
+                      style={{ borderColor: 'hsl(215 20% 88%)', color: 'inherit' }}
+                      onClick={() => setIsNotificationsOpen(false)}
+                    >
+                      <div className="font-semibold">Incoming lead</div>
+                      <div className="text-xs text-slate-600 truncate">
+                        {[lead.first_name, lead.last_name].filter(Boolean).join(' ') ||
+                          lead.company ||
+                          'New lead'}
+                      </div>
+                    </Link>
+                  ))}
+                  {notificationJobs.map((job) => (
+                    <Link
+                      key={`dashboard-job-${job.id}`}
+                      to={`/jobs/${job.id}`}
+                      className="block rounded-lg border px-3 py-2.5 text-sm no-underline transition-colors hover:bg-slate-50"
+                      style={{ borderColor: 'hsl(215 20% 88%)', color: 'inherit' }}
+                      onClick={() => setIsNotificationsOpen(false)}
+                    >
+                      <div className="font-semibold">
+                        {job.reminder_at && !job.reminder_sent_at && new Date(job.reminder_at).getTime() <= nowTs
+                          ? 'Job reminder due'
+                          : 'Upcoming job'}
+                      </div>
+                      <div className="text-xs text-slate-600 truncate">
+                        Scheduled for {job.scheduled_date}
+                      </div>
+                    </Link>
+                  ))}
+                  {!notificationsPending && notificationLeads.length === 0 && notificationJobs.length === 0 ? (
+                    <div className="rounded-lg border border-slate-200 px-3 py-2.5 text-sm text-slate-600">
+                      No new notifications right now.
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+          </div>
         </div>
       </div>
 

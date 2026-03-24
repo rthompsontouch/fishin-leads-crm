@@ -216,7 +216,6 @@ export default function AppShell() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
   const mobileNotificationsRef = useRef<HTMLDivElement | null>(null)
-  const desktopNotificationsRef = useRef<HTMLDivElement | null>(null)
   useEffect(() => {
     setIsMobileMenuOpen(false)
     setIsNotificationsOpen(false)
@@ -237,8 +236,7 @@ export default function AppShell() {
       const target = event.target as Node | null
       if (!target) return
       const inMobile = mobileNotificationsRef.current?.contains(target) ?? false
-      const inDesktop = desktopNotificationsRef.current?.contains(target) ?? false
-      if (!inMobile && !inDesktop) {
+      if (!inMobile) {
         setIsNotificationsOpen(false)
       }
     }
@@ -536,100 +534,6 @@ export default function AppShell() {
               </div>
             )}
           </nav>
-
-          <div
-            ref={desktopNotificationsRef}
-            className={[
-              'relative',
-              isCollapsed ? '-ml-3 pl-3 w-[calc(100%+0.75rem)] py-1' : '-ml-4 pl-4 w-[calc(100%+1rem)] py-1 pr-3',
-            ].join(' ')}
-          >
-            <button
-              type="button"
-              className={[
-                shellIconButtonClass,
-                'relative w-full inline-flex items-center gap-2 justify-center',
-                isCollapsed ? 'h-12 px-0' : 'justify-start px-3 py-2',
-              ].join(' ')}
-              onClick={() => setIsNotificationsOpen((v) => !v)}
-              aria-label="Notifications"
-              aria-expanded={isNotificationsOpen}
-              title="Notifications"
-            >
-              <Bell size={18} className="shrink-0" />
-              {!isCollapsed ? <span className="text-sm font-medium">Notifications</span> : null}
-              {notificationBadgeCount > 0 ? (
-                <span
-                  className="absolute right-1.5 top-1.5 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full px-1 text-[11px] font-bold leading-none text-white"
-                  style={{ background: 'var(--color-danger)' }}
-                  aria-label={`${notificationBadgeCount} new notifications`}
-                >
-                  {notificationBadgeCount > 9 ? '9+' : notificationBadgeCount}
-                </span>
-              ) : null}
-            </button>
-            {isNotificationsOpen ? (
-              <div
-                className={[
-                  'z-[70] rounded-xl border bg-white p-3 shadow-xl',
-                  isCollapsed
-                    ? 'absolute left-[calc(100%+0.5rem)] bottom-0 w-80'
-                    : 'mt-2 w-full',
-                ].join(' ')}
-                style={{ borderColor: 'var(--color-border)', color: 'var(--crm-content-header-text)' }}
-              >
-                <div className="flex items-center justify-between gap-2 pb-2">
-                  <div className="text-sm font-semibold">Notifications</div>
-                  {(notificationBadgeCount > 0 || notificationsPending) && (
-                    <div className="text-xs text-slate-500">
-                      {notificationsPending ? 'Refreshing...' : `${notificationBadgeCount} new`}
-                    </div>
-                  )}
-                </div>
-                <div className="max-h-[50dvh] space-y-2 overflow-y-auto pr-1 crm-scrollbar">
-                  {recentLeads.map((lead) => (
-                    <Link
-                      key={`desktop-lead-${lead.id}`}
-                      to={`/leads/${lead.id}`}
-                      className="block rounded-lg border px-3 py-2.5 text-sm no-underline transition-colors hover:bg-slate-50"
-                      style={{ borderColor: 'hsl(215 20% 88%)', color: 'inherit' }}
-                      onClick={() => setIsNotificationsOpen(false)}
-                    >
-                      <div className="font-semibold">Incoming lead</div>
-                      <div className="text-xs text-slate-600 truncate">
-                        {[lead.first_name, lead.last_name].filter(Boolean).join(' ') ||
-                          lead.company ||
-                          'New lead'}
-                      </div>
-                    </Link>
-                  ))}
-                  {upcomingJobs.map((job) => (
-                    <Link
-                      key={`desktop-job-${job.id}`}
-                      to={`/jobs/${job.id}`}
-                      className="block rounded-lg border px-3 py-2.5 text-sm no-underline transition-colors hover:bg-slate-50"
-                      style={{ borderColor: 'hsl(215 20% 88%)', color: 'inherit' }}
-                      onClick={() => setIsNotificationsOpen(false)}
-                    >
-                      <div className="font-semibold">
-                        {job.reminder_at && !job.reminder_sent_at && new Date(job.reminder_at).getTime() <= nowTs
-                          ? 'Job reminder due'
-                          : 'Upcoming job'}
-                      </div>
-                      <div className="text-xs text-slate-600 truncate">
-                        Scheduled for {job.scheduled_date}
-                      </div>
-                    </Link>
-                  ))}
-                  {!notificationsPending && recentLeads.length === 0 && upcomingJobs.length === 0 ? (
-                    <div className="rounded-lg border border-slate-200 px-3 py-2.5 text-sm text-slate-600">
-                      No new notifications right now.
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-            ) : null}
-          </div>
 
           <Link
             to="/settings"
