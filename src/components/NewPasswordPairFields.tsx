@@ -168,8 +168,7 @@ export default function NewPasswordPairFields({
       <div className="signup-password-tools">
         <button
           type="button"
-          className="rounded-md border px-3 py-2 text-sm font-semibold signup-btn-secondary"
-          style={{ borderColor: 'var(--color-border)', background: 'var(--color-background)' }}
+          className="rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-800 transition-colors hover:bg-slate-50 signup-btn-secondary"
           disabled={disabled}
           onClick={() => void handleGenerate()}
         >
@@ -177,8 +176,7 @@ export default function NewPasswordPairFields({
         </button>
         <button
           type="button"
-          className="rounded-md border px-2 py-2 signup-btn-secondary signup-copy-btn"
-          style={{ borderColor: 'var(--color-border)', background: 'var(--color-background)' }}
+          className="rounded-md border border-slate-300 bg-white px-2 py-2 text-slate-800 transition-colors hover:bg-slate-50 signup-btn-secondary signup-copy-btn"
           disabled={disabled}
           onClick={() => void handleCopy()}
           aria-label="Copy new password"

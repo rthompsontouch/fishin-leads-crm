@@ -22,8 +22,10 @@ const LEAD_STATUS_LEGEND: Array<{ label: string; color: string }> = [
 function leadStatusDotColor(status: string): string {
   switch (status) {
     case 'Won':
+    case 'ClosedWon':
       return 'var(--color-success)'
     case 'Lost':
+    case 'ClosedLost':
       return 'var(--color-danger)'
     case 'New':
       return 'var(--color-info)'
@@ -31,6 +33,10 @@ function leadStatusDotColor(status: string): string {
       return 'var(--color-warning)'
     case 'Contacted':
       return 'var(--color-accent)'
+    case 'Qualified':
+      return 'var(--color-success)'
+    case 'Unqualified':
+      return 'var(--color-warning)'
     default:
       return 'var(--color-accent)'
   }
@@ -258,9 +264,8 @@ export default function LeadsPage() {
             <span className="truncate text-xs font-bold md:text-sm md:font-semibold">Phone</span>
           </div>
           <div className="flex items-center justify-end gap-1 min-w-0 md:justify-start">
-            <span className="hidden md:inline truncate">Status</span>
-            <span className="md:hidden text-xs font-bold whitespace-nowrap">St</span>
-            <div className="md:hidden">
+            <span className="truncate text-xs font-bold md:text-sm md:font-semibold">Status</span>
+            <div className="md:hidden shrink-0">
               <LeadStatusLegendMobile />
             </div>
           </div>

@@ -1,36 +1,45 @@
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useLayoutEffect, useMemo, useRef } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
-import { zodResolver } from '@hookform/resolvers/zod'
+import IndustryCompanySizeFields from '../../../components/IndustryCompanySizeFields'
 import ContactActionButtons from '../../../components/ContactActionButtons'
+import {
+  buildCompanySizeOptions,
+  CRM_COMPANY_SIZES,
+  industrySelectZ,
+  optionalPhoneZ,
+  optionalWebsiteZ,
+  refineIndustryOther,
+  resolveIndustryFromForm,
+  splitIndustryForForm,
+} from '../../../lib/crmFieldOptions'
 import type { CreateCustomerInput } from '../api/customersApi'
 
 const statusValues = ['Prospect', 'Active', 'OnHold', 'Churned'] as const
 type CustomerStatus = (typeof statusValues)[number]
 const statusEnum = z.enum(['Prospect', 'Active', 'OnHold', 'Churned'] as const)
 
-const schema = z.object({
-  name: z.string().min(1, { message: 'Account name is required.' }),
+const optionalText = z.string().optional()
 
-  primary_first_name: z.string().optional().or(z.literal('')),
-  primary_last_name: z.string().optional().or(z.literal('')),
-  primary_title: z.string().optional().or(z.literal('')),
-  primary_email: z.string().email().optional().or(z.literal('')),
-  primary_phone: z.string().optional().or(z.literal('')),
-
-  industry: z.string().optional().or(z.literal('')),
-  company_size: z.string().optional().or(z.literal('')),
-  website: z.string().optional().or(z.literal('')),
-
-  billing_street: z.string().optional().or(z.literal('')),
-  billing_city: z.string().optional().or(z.literal('')),
-  billing_state: z.string().optional().or(z.literal('')),
-  billing_postal_code: z.string().optional().or(z.literal('')),
-  billing_country: z.string().optional().or(z.literal('')),
-
-  status: statusEnum,
-})
-
-type FormValues = z.infer<typeof schema>
+type FormValues = {
+  name: string
+  primary_first_name?: string
+  primary_last_name?: string
+  primary_title?: string
+  primary_email: string
+  primary_phone: string
+  industry_select: string
+  industry_other: string
+  company_size: string
+  website: string
+  billing_street?: string
+  billing_city?: string
+  billing_state?: string
+  billing_postal_code?: string
+  billing_country?: string
+  status: CustomerStatus
+}
 
 export default function CustomerForm({
   initialValues,
@@ -41,6 +50,68 @@ export default function CustomerForm({
   submitLabel: string
   onSubmit: (values: CreateCustomerInput) => Promise<void> | void
 }) {
+  const allowLegacyCompanySizeRef = useRef<string | null>(null)
+  useLayoutEffect(() => {
+    const s = initialValues?.company_size?.trim() ?? ''
+    allowLegacyCompanySizeRef.current =
+      s && !(CRM_COMPANY_SIZES as readonly string[]).includes(s) ? s : null
+  }, [initialValues?.company_size])
+
+  const companySizeChoices = useMemo(
+    () => buildCompanySizeOptions(initialValues?.company_size),
+    [initialValues?.company_size],
+  )
+
+  const schema = useMemo(
+    () =>
+      z
+        .object({
+          name: z.string().min(1, { message: 'Account name is required.' }),
+
+          primary_first_name: optionalText,
+          primary_last_name: optionalText,
+          primary_title: optionalText,
+          primary_email: z
+            .string()
+            .transform((s) => s.trim())
+            .pipe(
+              z.union([
+                z.literal(''),
+                z.string().email({ message: 'Enter a valid email address.' }),
+              ]),
+            ),
+          primary_phone: optionalPhoneZ,
+
+          industry_select: industrySelectZ,
+          industry_other: z.string(),
+          company_size: z.string(),
+          website: optionalWebsiteZ,
+
+          billing_street: optionalText,
+          billing_city: optionalText,
+          billing_state: optionalText,
+          billing_postal_code: optionalText,
+          billing_country: optionalText,
+
+          status: statusEnum,
+        })
+        .superRefine((data, ctx) => refineIndustryOther(data, ctx))
+        .superRefine((data, ctx) => {
+          const t = (data.company_size ?? '').trim()
+          if (!t) return
+          if ((CRM_COMPANY_SIZES as readonly string[]).includes(t)) return
+          if (allowLegacyCompanySizeRef.current && t === allowLegacyCompanySizeRef.current) return
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'Select a company size from the list.',
+            path: ['company_size'],
+          })
+        }),
+    [],
+  )
+
+  const ind = splitIndustryForForm(initialValues?.industry)
+
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -50,8 +121,9 @@ export default function CustomerForm({
       primary_title: initialValues?.primary_title ?? '',
       primary_email: initialValues?.primary_email ?? '',
       primary_phone: initialValues?.primary_phone ?? '',
-      industry: initialValues?.industry ?? '',
-      company_size: initialValues?.company_size ?? '',
+      industry_select: ind.industry_select,
+      industry_other: ind.industry_other,
+      company_size: initialValues?.company_size?.trim() ?? '',
       website: initialValues?.website ?? '',
       billing_street: initialValues?.billing_street ?? '',
       billing_city: initialValues?.billing_city ?? '',
@@ -61,6 +133,46 @@ export default function CustomerForm({
       status: (initialValues?.status ?? 'Active') as CustomerStatus,
     },
   })
+
+  const { reset } = form
+  useLayoutEffect(() => {
+    const next = splitIndustryForForm(initialValues?.industry)
+    reset({
+      name: initialValues?.name ?? '',
+      primary_first_name: initialValues?.primary_first_name ?? '',
+      primary_last_name: initialValues?.primary_last_name ?? '',
+      primary_title: initialValues?.primary_title ?? '',
+      primary_email: initialValues?.primary_email ?? '',
+      primary_phone: initialValues?.primary_phone ?? '',
+      industry_select: next.industry_select,
+      industry_other: next.industry_other,
+      company_size: initialValues?.company_size?.trim() ?? '',
+      website: initialValues?.website ?? '',
+      billing_street: initialValues?.billing_street ?? '',
+      billing_city: initialValues?.billing_city ?? '',
+      billing_state: initialValues?.billing_state ?? '',
+      billing_postal_code: initialValues?.billing_postal_code ?? '',
+      billing_country: initialValues?.billing_country ?? '',
+      status: (initialValues?.status ?? 'Active') as CustomerStatus,
+    })
+  }, [
+    reset,
+    initialValues?.name,
+    initialValues?.primary_first_name,
+    initialValues?.primary_last_name,
+    initialValues?.primary_title,
+    initialValues?.primary_email,
+    initialValues?.primary_phone,
+    initialValues?.industry,
+    initialValues?.company_size,
+    initialValues?.website,
+    initialValues?.billing_street,
+    initialValues?.billing_city,
+    initialValues?.billing_state,
+    initialValues?.billing_postal_code,
+    initialValues?.billing_country,
+    initialValues?.status,
+  ])
 
   const primaryEmail = form.watch('primary_email')
   const primaryPhone = form.watch('primary_phone')
@@ -92,8 +204,7 @@ export default function CustomerForm({
             values.primary_phone && values.primary_phone.trim()
               ? values.primary_phone.trim()
               : null,
-          industry:
-            values.industry && values.industry.trim() ? values.industry.trim() : null,
+          industry: resolveIndustryFromForm(values.industry_select, values.industry_other),
           company_size:
             values.company_size && values.company_size.trim()
               ? values.company_size.trim()
@@ -170,8 +281,14 @@ export default function CustomerForm({
         <input
           className="rounded-md border px-3 py-2 outline-none"
           style={{ borderColor: 'var(--color-border)' }}
+          autoComplete="email"
           {...form.register('primary_email')}
         />
+        {form.formState.errors.primary_email ? (
+          <span className="text-xs" style={{ color: 'var(--color-danger)' }}>
+            {form.formState.errors.primary_email.message}
+          </span>
+        ) : null}
       </label>
 
       <label className="flex flex-col gap-1 text-sm">
@@ -179,8 +296,15 @@ export default function CustomerForm({
         <input
           className="rounded-md border px-3 py-2 outline-none"
           style={{ borderColor: 'var(--color-border)' }}
+          autoComplete="tel"
+          placeholder="+1 555 123 4567"
           {...form.register('primary_phone')}
         />
+        {form.formState.errors.primary_phone ? (
+          <span className="text-xs" style={{ color: 'var(--color-danger)' }}>
+            {form.formState.errors.primary_phone.message}
+          </span>
+        ) : null}
       </label>
 
       <div className="md:col-span-2 flex flex-wrap items-center gap-2 min-h-[2rem]">
@@ -192,31 +316,28 @@ export default function CustomerForm({
         />
       </div>
 
-      <label className="flex flex-col gap-1 text-sm">
-        Industry
-        <input
-          className="rounded-md border px-3 py-2 outline-none"
-          style={{ borderColor: 'var(--color-border)' }}
-          {...form.register('industry')}
+      <div className="contents">
+        <IndustryCompanySizeFields
+          register={form.register as never}
+          watch={form.watch as never}
+          errors={form.formState.errors as never}
+          companySizeChoices={companySizeChoices}
         />
-      </label>
-
-      <label className="flex flex-col gap-1 text-sm">
-        Company size
-        <input
-          className="rounded-md border px-3 py-2 outline-none"
-          style={{ borderColor: 'var(--color-border)' }}
-          {...form.register('company_size')}
-        />
-      </label>
+      </div>
 
       <label className="flex flex-col gap-1 text-sm md:col-span-2">
         Website
         <input
           className="rounded-md border px-3 py-2 outline-none"
           style={{ borderColor: 'var(--color-border)' }}
+          placeholder="https://example.com"
           {...form.register('website')}
         />
+        {form.formState.errors.website ? (
+          <span className="text-xs" style={{ color: 'var(--color-danger)' }}>
+            {form.formState.errors.website.message}
+          </span>
+        ) : null}
       </label>
 
       <label className="flex flex-col gap-1 text-sm md:col-span-2">
@@ -291,4 +412,3 @@ export default function CustomerForm({
     </form>
   )
 }
-

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -22,6 +22,17 @@ import { ensureWebPushSubscribed } from '../lib/webPushSubscription'
 import { getHasMyPushSubscription } from '../features/notifications/api/notificationsApi'
 import { LogOut } from 'lucide-react'
 import CrmModal from '../components/CrmModal'
+import IndustryCompanySizeFields from '../components/IndustryCompanySizeFields'
+import {
+  buildCompanySizeOptions,
+  CRM_COMPANY_SIZES,
+  industrySelectZ,
+  optionalPhoneZ,
+  optionalWebsiteZ,
+  refineIndustryOther,
+  resolveIndustryFromForm,
+  splitIndustryForForm,
+} from '../lib/crmFieldOptions'
 
 const settingsCardClass =
   'rounded-xl bg-white p-6 sm:p-7 shadow-sm ring-1 ring-black/5'
@@ -114,21 +125,49 @@ export default function SettingsPage() {
     enabled: Boolean(vapidPublicKey),
   })
 
-  const accountSchema = useMemo(() => {
-    return z.object({
-      company_name: z.string().min(1, 'Company name is required.'),
+  const allowLegacyCompanySizeRef = useRef<string | null>(null)
+  useLayoutEffect(() => {
+    const s = profile?.company_size?.trim() ?? ''
+    allowLegacyCompanySizeRef.current =
+      s && !(CRM_COMPANY_SIZES as readonly string[]).includes(s) ? s : null
+  }, [profile?.company_size])
 
-      first_name: z.string().optional().or(z.literal('')),
-      last_name: z.string().optional().or(z.literal('')),
-      phone: z.string().optional().or(z.literal('')),
-      industry: z.string().optional().or(z.literal('')),
-      company_size: z.string().optional().or(z.literal('')),
-      website: z.string().optional().or(z.literal('')),
-    })
-  }, [])
+  const companySizeChoicesForAccount = useMemo(
+    () => buildCompanySizeOptions(profile?.company_size),
+    [profile?.company_size],
+  )
+
+  const accountSchema = useMemo(
+    () =>
+      z
+        .object({
+          company_name: z.string().min(1, 'Company name is required.'),
+          first_name: z.string().optional().or(z.literal('')),
+          last_name: z.string().optional().or(z.literal('')),
+          phone: optionalPhoneZ,
+          industry_select: industrySelectZ,
+          industry_other: z.string(),
+          company_size: z.string(),
+          website: optionalWebsiteZ,
+        })
+        .superRefine((data, ctx) => refineIndustryOther(data, ctx))
+        .superRefine((data, ctx) => {
+          const t = (data.company_size ?? '').trim()
+          if (!t) return
+          if ((CRM_COMPANY_SIZES as readonly string[]).includes(t)) return
+          if (allowLegacyCompanySizeRef.current && t === allowLegacyCompanySizeRef.current) return
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'Select a company size from the list.',
+            path: ['company_size'],
+          })
+        }),
+    [],
+  )
 
   type AccountValues = z.infer<typeof accountSchema>
 
+  const accountIndDefaults = splitIndustryForForm(profile?.industry)
   const accountForm = useForm<AccountValues>({
     resolver: zodResolver(accountSchema),
     defaultValues: {
@@ -136,7 +175,8 @@ export default function SettingsPage() {
       first_name: profile?.first_name ?? '',
       last_name: profile?.last_name ?? '',
       phone: profile?.phone ?? '',
-      industry: profile?.industry ?? '',
+      industry_select: accountIndDefaults.industry_select,
+      industry_other: accountIndDefaults.industry_other,
       company_size: profile?.company_size ?? '',
       website: profile?.website ?? '',
     },
@@ -144,12 +184,14 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (!profile) return
+    const ind = splitIndustryForForm(profile.industry)
     accountForm.reset({
       company_name: profile.company_name ?? '',
       first_name: profile.first_name ?? '',
       last_name: profile.last_name ?? '',
       phone: profile.phone ?? '',
-      industry: profile.industry ?? '',
+      industry_select: ind.industry_select,
+      industry_other: ind.industry_other,
       company_size: profile.company_size ?? '',
       website: profile.website ?? '',
     })
@@ -187,12 +229,16 @@ export default function SettingsPage() {
   })
 
   async function handleSaveAccount(values: AccountValues) {
+    const industryResolved = resolveIndustryFromForm(
+      values.industry_select,
+      values.industry_other,
+    )
     const payload = {
       company_name: values.company_name,
       first_name: emptyToNull(values.first_name),
       last_name: emptyToNull(values.last_name),
       phone: emptyToNull(values.phone),
-      industry: emptyToNull(values.industry),
+      industry: industryResolved,
       company_size: emptyToNull(values.company_size),
       website: emptyToNull(values.website),
     }
@@ -374,7 +420,7 @@ export default function SettingsPage() {
             <div className="text-sm text-slate-600">Loading profile…</div>
           ) : (
             <form
-              className="crm-form-dark grid grid-cols-1 gap-3 pt-2 border-t border-[hsl(215_20%_88%)]"
+              className="crm-form-dark grid grid-cols-1 md:grid-cols-2 gap-3 pt-2 border-t border-[hsl(215_20%_88%)]"
               onSubmit={accountForm.handleSubmit(async (v) => {
                 try {
                   await handleSaveAccount(v)
@@ -383,13 +429,13 @@ export default function SettingsPage() {
                 }
               })}
             >
-              <label className="flex flex-col gap-1 text-sm font-medium" style={fieldLabelStyle}>
+              <label className="flex flex-col gap-1 text-sm font-medium md:col-span-2" style={fieldLabelStyle}>
                 Company name
                 <input className={fieldInputClass} style={fieldInputStyle} {...accountForm.register('company_name')} />
                 <FormFieldError message={accountForm.formState.errors.company_name?.message} />
               </label>
 
-              <label className="flex flex-col gap-1 text-sm font-medium" style={fieldLabelStyle}>
+              <label className="flex flex-col gap-1 text-sm font-medium md:col-span-2" style={fieldLabelStyle}>
                 Tier
                 <input
                   disabled
@@ -399,7 +445,7 @@ export default function SettingsPage() {
                 />
               </label>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:col-span-2">
                 <label className="flex flex-col gap-1 text-sm font-medium" style={fieldLabelStyle}>
                   First name
                   <input className={fieldInputClass} style={fieldInputStyle} {...accountForm.register('first_name')} />
@@ -411,27 +457,41 @@ export default function SettingsPage() {
                 </label>
               </div>
 
-              <label className="flex flex-col gap-1 text-sm font-medium" style={fieldLabelStyle}>
+              <label className="flex flex-col gap-1 text-sm font-medium md:col-span-2" style={fieldLabelStyle}>
                 Phone
-                <input className={fieldInputClass} style={fieldInputStyle} {...accountForm.register('phone')} />
+                <input
+                  className={fieldInputClass}
+                  style={fieldInputStyle}
+                  autoComplete="tel"
+                  placeholder="+1 555 123 4567"
+                  {...accountForm.register('phone')}
+                />
+                <FormFieldError message={accountForm.formState.errors.phone?.message} />
               </label>
 
-              <label className="flex flex-col gap-1 text-sm font-medium" style={fieldLabelStyle}>
-                Industry
-                <input className={fieldInputClass} style={fieldInputStyle} {...accountForm.register('industry')} />
-              </label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:col-span-2">
+                <div className="contents">
+                  <IndustryCompanySizeFields
+                    register={accountForm.register as never}
+                    watch={accountForm.watch as never}
+                    errors={accountForm.formState.errors as never}
+                    companySizeChoices={companySizeChoicesForAccount}
+                  />
+                </div>
+              </div>
 
-              <label className="flex flex-col gap-1 text-sm font-medium" style={fieldLabelStyle}>
-                Company size
-                <input className={fieldInputClass} style={fieldInputStyle} {...accountForm.register('company_size')} />
-              </label>
-
-              <label className="flex flex-col gap-1 text-sm font-medium" style={fieldLabelStyle}>
+              <label className="flex flex-col gap-1 text-sm font-medium md:col-span-2" style={fieldLabelStyle}>
                 Website
-                <input className={fieldInputClass} style={fieldInputStyle} {...accountForm.register('website')} />
+                <input
+                  className={fieldInputClass}
+                  style={fieldInputStyle}
+                  placeholder="https://example.com"
+                  {...accountForm.register('website')}
+                />
+                <FormFieldError message={accountForm.formState.errors.website?.message} />
               </label>
 
-              <div className="flex justify-end pt-1">
+              <div className="flex justify-end pt-1 md:col-span-2">
                 <button
                   type="submit"
                   className="rounded-md px-5 py-2.5 text-sm font-semibold text-white cursor-pointer transition-colors duration-150 bg-[color:var(--color-primary)] hover:bg-[color:var(--color-primary-dark)] disabled:opacity-60 disabled:cursor-not-allowed"

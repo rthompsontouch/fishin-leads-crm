@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Download, Plus } from 'lucide-react'
+import { Download, HelpCircle, Mail, Phone, Plus } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import TablePagination from '../components/TablePagination'
@@ -12,6 +12,62 @@ import {
 import { CUSTOMER_EXPORT_FIELDS, runCustomerExport } from '../lib/exportCustomersCsv'
 
 const CUSTOMERS_PAGE_SIZE = 10
+
+const CUSTOMER_STATUS_LEGEND: Array<{ label: string; color: string }> = [
+  { label: 'Prospect', color: 'var(--color-accent)' },
+  { label: 'Active', color: 'var(--color-success)' },
+  { label: 'OnHold', color: 'var(--color-info)' },
+  { label: 'Churned', color: 'var(--color-danger)' },
+]
+
+function customerStatusDotColor(status: string): string {
+  switch (status) {
+    case 'Active':
+      return 'var(--color-success)'
+    case 'Churned':
+      return 'var(--color-danger)'
+    case 'OnHold':
+      return 'var(--color-info)'
+    case 'Prospect':
+    default:
+      return 'var(--color-accent)'
+  }
+}
+
+function CustomerStatusLegendMobile() {
+  return (
+    <details className="relative z-20">
+      <summary
+        className="list-none cursor-pointer rounded-md p-1 text-slate-500 outline-none transition-colors hover:bg-slate-200/80 hover:text-slate-800 focus-visible:ring-2 focus-visible:ring-[color:var(--color-primary)] [&::-webkit-details-marker]:hidden"
+        aria-label="What status colors mean"
+      >
+        <HelpCircle size={17} strokeWidth={2.25} aria-hidden />
+      </summary>
+      <div
+        className="absolute right-0 top-[calc(100%+0.35rem)] w-[min(calc(100vw-2rem),14rem)] rounded-lg border bg-white p-3 text-left text-xs shadow-lg"
+        style={{
+          borderColor: 'hsl(215 22% 82%)',
+          color: 'var(--crm-content-header-text)',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="font-semibold mb-2 text-sm">Status colors</div>
+        <ul className="m-0 list-none space-y-2 p-0">
+          {CUSTOMER_STATUS_LEGEND.map((row) => (
+            <li key={row.label} className="flex items-center gap-2">
+              <span
+                className="h-2.5 w-2.5 shrink-0 rounded-full border border-black/10"
+                style={{ background: row.color }}
+                aria-hidden
+              />
+              <span>{row.label}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </details>
+  )
+}
 
 export default function CustomersPage() {
   const navigate = useNavigate()
@@ -110,7 +166,7 @@ export default function CustomersPage() {
           style={{ borderColor: 'var(--color-border)' }}
         >
           <div
-            className="text-sm font-semibold"
+            className="text-sm font-semibold md:text-sm max-md:text-lg max-md:font-bold"
             style={{ color: 'var(--crm-content-header-text)' }}
           >
             Customer list
@@ -131,15 +187,26 @@ export default function CustomersPage() {
         </div>
 
         <div
-          className="grid grid-cols-4 md:grid-cols-6 gap-2 bg-slate-100 p-3 text-sm font-semibold"
+          className="grid max-md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] md:grid-cols-6 gap-2 bg-slate-100 p-3 text-sm font-semibold"
           style={{ color: 'var(--crm-content-header-text)' }}
         >
           <div className="truncate min-w-0">Name</div>
           <div className="hidden md:block truncate min-w-0">Primary contact</div>
-          <div className="truncate min-w-0">Email</div>
-          <div className="truncate min-w-0">Phone</div>
+          <div className="flex items-center gap-1.5 min-w-0 truncate">
+            <Mail size={15} className="shrink-0 opacity-80 md:hidden" aria-hidden />
+            <span className="truncate text-xs font-bold md:text-sm md:font-semibold">Email</span>
+          </div>
+          <div className="flex items-center gap-1.5 min-w-0 truncate">
+            <Phone size={15} className="shrink-0 opacity-80 md:hidden" aria-hidden />
+            <span className="truncate text-xs font-bold md:text-sm md:font-semibold">Phone</span>
+          </div>
           <div className="hidden md:block truncate min-w-0">Industry</div>
-          <div className="truncate min-w-0">Status</div>
+          <div className="flex items-center justify-end gap-1 min-w-0 md:justify-start">
+            <span className="truncate text-xs font-bold md:text-sm md:font-semibold">Status</span>
+            <div className="md:hidden shrink-0">
+              <CustomerStatusLegendMobile />
+            </div>
+          </div>
         </div>
 
         {showInitialLoading ? (
@@ -164,19 +231,18 @@ export default function CustomersPage() {
             <div className="px-2 pt-2 pb-0">
               {pageRows.map((c, idx) => {
                 const contact = [c.primary_first_name, c.primary_last_name].filter(Boolean).join(' ')
-                const statusColor =
-                  c.status === 'Active'
-                    ? 'var(--color-success)'
-                    : c.status === 'Churned'
-                      ? 'var(--color-danger)'
-                      : c.status === 'OnHold'
-                        ? 'var(--color-info)'
-                        : 'var(--color-accent)'
+                const statusColor = customerStatusDotColor(c.status as string)
                 const isLast = idx === pageRows.length - 1
+                const stripe = idx % 2 === 1 ? 'bg-slate-50/95' : 'bg-white'
                 return (
                   <div
                     key={c.id}
-                    className={`grid grid-cols-4 md:grid-cols-6 gap-2 px-3 py-3 min-h-[3.25rem] items-center border-b transition-colors hover:bg-slate-50 ${isLast ? 'border-b-0' : ''}`}
+                    className={[
+                      'grid max-md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] md:grid-cols-6 gap-2 px-3 py-3 min-h-[3.25rem] items-center border-b transition-colors',
+                      stripe,
+                      'hover:bg-slate-100/90',
+                      isLast ? 'border-b-0' : '',
+                    ].join(' ')}
                     style={{ borderColor: 'hsl(215 20% 88%)', color: 'var(--crm-content-header-text)' }}
                   >
                     <Link
@@ -189,18 +255,18 @@ export default function CustomersPage() {
                     <div className="hidden md:block truncate text-sm text-slate-700 min-w-0">
                       {contact || '—'}
                     </div>
-                    <div className="min-w-0 flex items-center">
-                      <EmailLinkCell email={c.primary_email} contactLabel={c.name} />
+                    <div className="min-w-0 flex w-full items-center md:justify-start">
+                      <EmailLinkCell email={c.primary_email} contactLabel={c.name} iconOnlyMobile />
                     </div>
-                    <div className="min-w-0 flex items-center">
-                      <CallLinkCell phone={c.primary_phone} />
+                    <div className="min-w-0 flex w-full items-center md:justify-start">
+                      <CallLinkCell phone={c.primary_phone} iconOnlyMobile />
                     </div>
                     <div className="hidden md:block truncate text-sm text-slate-700 min-w-0">
                       {c.industry || '—'}
                     </div>
-                    <div className="text-sm font-semibold min-w-0">
+                    <div className="flex min-w-0 items-center justify-end md:justify-start">
                       <span
-                        className="inline-flex rounded-full px-2.5 py-1.5 max-w-full"
+                        className="hidden md:inline-flex rounded-full px-2.5 py-1.5 max-w-full text-sm font-semibold"
                         style={{
                           background: 'color-mix(in srgb, var(--color-primary) 10%, transparent)',
                           border: '1px solid hsl(215 22% 78%)',
@@ -210,6 +276,12 @@ export default function CustomersPage() {
                           {c.status}
                         </span>
                       </span>
+                      <span
+                        className="md:hidden inline-flex h-5 w-5 shrink-0 rounded-full border border-black/15"
+                        style={{ background: statusColor }}
+                        title={c.status}
+                        aria-label={`Status: ${c.status}`}
+                      />
                     </div>
                   </div>
                 )

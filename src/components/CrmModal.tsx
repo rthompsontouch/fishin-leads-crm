@@ -9,6 +9,7 @@ type Props = {
   wide?: boolean
 }
 
+/** Light panel by default so copy and controls stay readable in OS dark mode. */
 export default function CrmModal({ open, title, onClose, children, wide }: Props) {
   const titleId = useId()
 
@@ -55,42 +56,26 @@ export default function CrmModal({ open, title, onClose, children, wide }: Props
         aria-modal="true"
         aria-labelledby={titleId}
         className={[
-          'relative z-10 flex w-full flex-col overflow-hidden border shadow-2xl crm-scrollbar',
+          'relative z-10 flex w-full flex-col overflow-hidden border border-slate-200 bg-white text-slate-900 shadow-2xl crm-scrollbar',
           'max-md:fixed max-md:inset-0 max-md:h-[100dvh] max-md:max-h-[100dvh] max-md:rounded-none max-md:border-x-0 max-md:border-t-0',
           'md:max-h-[min(92dvh,720px)] md:rounded-2xl',
           wide ? 'md:max-w-lg' : 'md:max-w-md',
         ].join(' ')}
-        style={{
-          background: 'var(--color-background)',
-          borderColor: 'var(--color-border)',
-          color: 'var(--color-foreground)',
-        }}
         onMouseDown={(e) => e.stopPropagation()}
       >
-        <div
-          className="sticky top-0 z-[1] flex shrink-0 items-center justify-between gap-3 border-b px-4 py-3.5 md:px-5 max-md:pt-[max(0.75rem,env(safe-area-inset-top))]"
-          style={{
-            borderColor: 'var(--color-border)',
-            background: 'var(--color-background)',
-          }}
-        >
-          <h2 id={titleId} className="text-lg font-semibold m-0 pr-2">
+        <div className="sticky top-0 z-[1] flex shrink-0 items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3.5 md:px-5 max-md:pt-[max(0.75rem,env(safe-area-inset-top))]">
+          <h2 id={titleId} className="text-lg font-semibold m-0 pr-2 text-slate-900">
             {title}
           </h2>
           <button
             type="button"
-            className="shrink-0 rounded-lg px-3 py-2 text-sm font-semibold border cursor-pointer min-h-11 min-w-11 md:min-w-0 transition-colors hover:opacity-90"
-            style={{
-              borderColor: 'var(--color-border)',
-              background: 'var(--color-surface-1)',
-              color: 'var(--color-foreground)',
-            }}
+            className="shrink-0 rounded-lg px-3 py-2 text-sm font-semibold border cursor-pointer min-h-11 min-w-11 md:min-w-0 transition-colors border-slate-300 bg-white text-slate-800 hover:bg-slate-100"
             onClick={onClose}
           >
             Close
           </button>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto p-4 md:p-5 max-md:pb-[max(1rem,env(safe-area-inset-bottom))]">
+        <div className="min-h-0 flex-1 overflow-y-auto bg-white p-4 md:p-5 max-md:pb-[max(1rem,env(safe-area-inset-bottom))]">
           {children}
         </div>
       </div>

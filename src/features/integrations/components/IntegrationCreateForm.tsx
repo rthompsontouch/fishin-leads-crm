@@ -1,14 +1,19 @@
+import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
-import { zodResolver } from '@hookform/resolvers/zod'
+import FormFieldError from '../../../components/FormFieldError'
+import { Constants } from '../../../lib/supabase.types'
 import type { CreateIntegrationInput } from '../api/integrationsApi'
 
-const statusValues = ['New', 'Contacted', 'Quoted', 'Won', 'Lost'] as const
+const leadStatusValues = Constants.public.Enums.lead_status
+const defaultStatusEnum = z.enum(
+  leadStatusValues as unknown as [string, ...string[]],
+)
 
 const schema = z.object({
   name: z.string().min(1, 'Name is required.'),
   source_label: z.string().min(1, 'Source label is required.'),
-  default_status: z.enum(statusValues as unknown as [string, ...string[]]),
+  default_status: defaultStatusEnum,
   enabled: z.boolean().optional(),
 })
 
@@ -38,7 +43,7 @@ export default function IntegrationCreateForm({
         await onSubmit({
           name: values.name.trim(),
           source_label: values.source_label.trim(),
-          default_status: values.default_status as any,
+          default_status: values.default_status as CreateIntegrationInput['default_status'],
           enabled: values.enabled ?? true,
         })
       })}
@@ -53,6 +58,7 @@ export default function IntegrationCreateForm({
           style={{ borderColor: 'hsl(215 22% 72%)', color: 'var(--crm-content-header-text, #0f172a)' }}
           {...form.register('name')}
         />
+        <FormFieldError message={form.formState.errors.name?.message} />
       </label>
 
       <label
@@ -65,6 +71,7 @@ export default function IntegrationCreateForm({
           style={{ borderColor: 'hsl(215 22% 72%)', color: 'var(--crm-content-header-text, #0f172a)' }}
           {...form.register('source_label')}
         />
+        <FormFieldError message={form.formState.errors.source_label?.message} />
       </label>
 
       <label
@@ -77,25 +84,18 @@ export default function IntegrationCreateForm({
           style={{ borderColor: 'hsl(215 22% 72%)', color: 'var(--crm-content-header-text, #0f172a)' }}
           {...form.register('default_status')}
         >
-          {statusValues.map((s) => (
+          {leadStatusValues.map((s) => (
             <option key={s} value={s}>
               {s}
             </option>
           ))}
         </select>
+        <FormFieldError message={form.formState.errors.default_status?.message} />
       </label>
 
       <div className="md:col-span-2 flex items-center gap-2">
-        <input
-          id="enabled"
-          type="checkbox"
-          className="h-4 w-4"
-          {...form.register('enabled')}
-        />
-        <label
-          htmlFor="enabled"
-          className="text-sm cursor-pointer text-slate-700"
-        >
+        <input id="enabled" type="checkbox" className="h-4 w-4" {...form.register('enabled')} />
+        <label htmlFor="enabled" className="text-sm cursor-pointer text-slate-700">
           Enabled
         </label>
       </div>
@@ -112,4 +112,3 @@ export default function IntegrationCreateForm({
     </form>
   )
 }
-
