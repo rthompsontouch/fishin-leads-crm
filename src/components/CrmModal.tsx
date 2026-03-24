@@ -64,7 +64,11 @@ export default function CrmModal({ open, title, onClose, children, wide }: Props
         onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="sticky top-0 z-[1] flex shrink-0 items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3.5 md:px-5 max-md:pt-[max(0.75rem,env(safe-area-inset-top))]">
-          <h2 id={titleId} className="text-lg font-semibold m-0 pr-2 text-slate-900">
+          <h2
+            id={titleId}
+            className="text-lg font-semibold m-0 pr-2"
+            style={{ color: '#0f172a' }}
+          >
             {title}
           </h2>
           <button
