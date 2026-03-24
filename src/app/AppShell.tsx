@@ -605,7 +605,7 @@ export default function AppShell() {
         </header>
 
         <main
-          className="flex-1 overflow-y-auto px-6 pb-6 pt-1 crm-scrollbar min-w-0 max-md:pt-[calc(max(0.35rem,env(safe-area-inset-top,0px))+4.1rem)]"
+          className="flex-1 overflow-y-auto px-6 pb-6 pt-1 crm-scrollbar min-w-0 max-md:pt-[calc(max(0.35rem,env(safe-area-inset-top,0px))+3.85rem)]"
           style={{ background: 'var(--crm-main-bg)' }}
         >
           <Outlet />

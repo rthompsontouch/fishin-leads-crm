@@ -3,6 +3,9 @@ import ModalScrollBackdrop from '../../../components/ModalScrollBackdrop'
 import type { LeadRow } from '../api/quotesApi'
 import { createQuoteFromLead } from '../api/quotesApi'
 
+const fieldClass =
+  'rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none'
+
 export default function CreateQuoteModal({
   open,
   lead,
@@ -39,26 +42,25 @@ export default function CreateQuoteModal({
   return (
     <ModalScrollBackdrop onBackdropClose={onClose} zClass="z-50" role="dialog" aria-modal>
       <div
-        className="crm-modal-panel-mobile-fs my-4 w-full max-w-[min(900px,100%)] max-h-[min(92dvh,900px)] min-h-0 flex flex-col rounded-xl border shadow-lg overflow-hidden"
-        style={{ borderColor: 'var(--color-border)', background: 'var(--color-background)' }}
+        className="crm-modal-panel-mobile-fs crm-light-surface crm-form-dark my-4 w-full max-w-[min(900px,100%)] max-h-[min(92dvh,900px)] min-h-0 flex flex-col rounded-xl border border-[color:hsl(215_22%_82%)] bg-white shadow-lg overflow-hidden text-slate-900"
         onMouseDown={(e) => e.stopPropagation()}
       >
-        <div className="shrink-0 flex items-start justify-between gap-4 p-5 pb-3 border-b" style={{ borderColor: 'var(--color-border)' }}>
+        <div className="shrink-0 flex items-start justify-between gap-4 p-5 pb-3 border-b border-[color:hsl(215_22%_82%)] bg-white">
           <div>
-            <div className="text-xs opacity-70">Create quote for</div>
-            <div className="text-lg font-semibold mt-1">{recipient}</div>
+            <div className="text-xs text-slate-600">Create quote for</div>
+            <div className="text-lg font-semibold mt-1 text-slate-900">{recipient}</div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md px-3 py-1 text-sm font-semibold border cursor-pointer transition-colors duration-150 border-[color:var(--color-border)] bg-transparent text-[color:var(--color-foreground)] hover:bg-[color:var(--color-surface-2)]"
+            className="rounded-md px-3 py-1 text-sm font-semibold border cursor-pointer transition-colors duration-150 border-slate-300 bg-white text-slate-800 hover:bg-slate-100"
           >
             Close
           </button>
         </div>
 
         <form
-          className="flex flex-col flex-1 min-h-0 overflow-y-auto crm-scrollbar p-5 pt-4 gap-4"
+          className="flex flex-col flex-1 min-h-0 overflow-y-auto crm-scrollbar bg-white p-5 pt-4 gap-4 text-slate-900"
           onSubmit={async (e) => {
             e.preventDefault()
             setError(null)
@@ -104,25 +106,23 @@ export default function CreateQuoteModal({
           }}
         >
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <label className="flex flex-col gap-1 text-sm">
+            <label className="flex flex-col gap-1 text-sm text-slate-900">
               Price (required)
               <input
                 value={priceAmount}
                 onChange={(e) => setPriceAmount(e.target.value)}
                 inputMode="decimal"
-                className="rounded-md border px-3 py-2 outline-none"
-                style={{ borderColor: 'var(--color-border)' }}
+                className={fieldClass}
                 placeholder="e.g. 2500"
               />
             </label>
 
-            <label className="flex flex-col gap-1 text-sm">
+            <label className="flex flex-col gap-1 text-sm text-slate-900">
               Currency
               <select
                 value={priceCurrency}
-                onChange={(e) => setPriceCurrency(e.target.value as any)}
-                className="rounded-md border px-3 py-2 outline-none"
-                style={{ borderColor: 'var(--color-border)' }}
+                onChange={(e) => setPriceCurrency(e.target.value as (typeof currencyValues)[number])}
+                className={fieldClass}
               >
                 {currencyValues.map((c) => (
                   <option key={c} value={c}>
@@ -132,23 +132,23 @@ export default function CreateQuoteModal({
               </select>
             </label>
 
-            <label className="flex flex-col gap-1 text-sm md:col-span-2">
+            <label className="flex flex-col gap-1 text-sm md:col-span-2 text-slate-900">
               Description (optional)
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="rounded-md border px-3 py-2 outline-none"
-                style={{ borderColor: 'var(--color-border)', minHeight: 92 }}
+                className={fieldClass}
+                style={{ minHeight: 92 }}
               />
             </label>
           </div>
 
-          <div className="rounded-lg border p-3" style={{ borderColor: 'var(--color-border)' }}>
-            <div className="text-sm font-semibold mb-2">Optional line items</div>
+          <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-3">
+            <div className="text-sm font-semibold mb-2 text-slate-900">Optional line items</div>
             <div className="flex flex-col gap-3">
               {lineItems.map((li) => (
                 <div key={li.id} className="grid grid-cols-1 md:grid-cols-5 gap-2 items-end">
-                  <label className="flex flex-col gap-1 text-sm md:col-span-2">
+                  <label className="flex flex-col gap-1 text-sm md:col-span-2 text-slate-900">
                     Description
                     <input
                       value={li.description}
@@ -158,12 +158,11 @@ export default function CreateQuoteModal({
                           prev.map((x) => (x.id === li.id ? { ...x, description: v } : x)),
                         )
                       }}
-                      className="rounded-md border px-3 py-2 outline-none"
-                      style={{ borderColor: 'var(--color-border)' }}
+                      className={fieldClass}
                     />
                   </label>
 
-                  <label className="flex flex-col gap-1 text-sm">
+                  <label className="flex flex-col gap-1 text-sm text-slate-900">
                     Qty
                     <input
                       value={String(li.quantity)}
@@ -176,12 +175,11 @@ export default function CreateQuoteModal({
                         )
                       }}
                       inputMode="numeric"
-                      className="rounded-md border px-3 py-2 outline-none"
-                      style={{ borderColor: 'var(--color-border)' }}
+                      className={fieldClass}
                     />
                   </label>
 
-                  <label className="flex flex-col gap-1 text-sm">
+                  <label className="flex flex-col gap-1 text-sm text-slate-900">
                     Unit price
                     <input
                       value={li.unit_price}
@@ -192,15 +190,14 @@ export default function CreateQuoteModal({
                         )
                       }}
                       inputMode="decimal"
-                      className="rounded-md border px-3 py-2 outline-none"
-                      style={{ borderColor: 'var(--color-border)' }}
+                      className={fieldClass}
                     />
                   </label>
 
                   <div className="md:col-span-1 flex justify-end">
                     <button
                       type="button"
-                      className="rounded-md px-3 py-2 text-sm font-semibold border cursor-pointer transition-colors duration-150 border-[color:var(--color-border)] bg-transparent text-[color:var(--color-foreground)] hover:bg-[color:var(--color-surface-2)] disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="rounded-md px-3 py-2 text-sm font-semibold border cursor-pointer transition-colors duration-150 border-slate-300 bg-white text-slate-800 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed"
                       disabled={lineItems.length <= 1}
                       onClick={() => {
                         setLineItems((prev) => prev.filter((x) => x.id !== li.id))
@@ -215,7 +212,7 @@ export default function CreateQuoteModal({
               <div className="flex justify-end">
                 <button
                   type="button"
-                  className="rounded-md px-3 py-2 text-sm font-semibold border cursor-pointer transition-colors duration-150 border-[color:var(--color-border)] bg-transparent text-[color:var(--color-foreground)] hover:bg-[color:var(--color-surface-2)]"
+                  className="rounded-md px-3 py-2 text-sm font-semibold border cursor-pointer transition-colors duration-150 border-slate-300 bg-white text-slate-800 hover:bg-slate-100"
                   onClick={() => {
                     setLineItems((prev) => [
                       ...prev,
@@ -230,21 +227,22 @@ export default function CreateQuoteModal({
             </div>
           </div>
 
-          <label className="flex flex-col gap-1 text-sm">
+          <label className="flex flex-col gap-1 text-sm text-slate-900">
             Quote photos (optional)
             <input
               type="file"
               accept="image/png,image/jpeg,image/webp"
               multiple
               onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
-              className="rounded-md border px-3 py-2 outline-none"
-              style={{ borderColor: 'var(--color-border)' }}
+              className={`${fieldClass} file:mr-3 file:rounded file:border-0 file:bg-slate-100 file:px-2 file:py-1 file:text-sm file:font-semibold file:text-slate-800`}
             />
-            <div className="text-xs opacity-70">{files.length === 0 ? 'No files selected.' : `${files.length} image(s) selected.`}</div>
+            <div className="text-xs text-slate-600">
+              {files.length === 0 ? 'No files selected.' : `${files.length} image(s) selected.`}
+            </div>
           </label>
 
           {error ? (
-            <div className="text-sm rounded-lg border px-3 py-2" style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface-2)', color: 'var(--color-danger)' }}>
+            <div className="text-sm rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-red-800">
               {error}
             </div>
           ) : null}
@@ -253,7 +251,7 @@ export default function CreateQuoteModal({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-md px-3 py-2 text-sm font-semibold border cursor-pointer transition-colors duration-150 border-[color:var(--color-border)] bg-transparent text-[color:var(--color-foreground)] hover:bg-[color:var(--color-surface-2)]"
+              className="rounded-md px-3 py-2 text-sm font-semibold border cursor-pointer transition-colors duration-150 border-slate-300 bg-white text-slate-800 hover:bg-slate-100"
               disabled={submitting}
             >
               Cancel
@@ -271,4 +269,3 @@ export default function CreateQuoteModal({
     </ModalScrollBackdrop>
   )
 }
-

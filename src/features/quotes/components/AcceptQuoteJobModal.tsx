@@ -94,27 +94,28 @@ export default function AcceptQuoteJobModal({
   return (
     <ModalScrollBackdrop onBackdropClose={onClose} zClass="z-50" role="dialog" aria-modal>
       <div
-        className="crm-modal-panel-mobile-fs my-4 w-full max-w-[min(980px,100%)] max-h-[min(92dvh,920px)] min-h-0 flex flex-col rounded-xl border shadow-lg overflow-hidden"
-        style={{ borderColor: 'var(--color-border)', background: 'var(--color-background)' }}
+        className="crm-modal-panel-mobile-fs crm-light-surface crm-form-dark my-4 w-full max-w-[min(980px,100%)] max-h-[min(92dvh,920px)] min-h-0 flex flex-col rounded-xl border border-[color:hsl(215_22%_82%)] bg-white shadow-lg overflow-hidden text-slate-900"
         onMouseDown={(e) => e.stopPropagation()}
       >
-        <div className="shrink-0 flex items-start justify-between gap-4 p-5 pb-3 border-b" style={{ borderColor: 'var(--color-border)' }}>
+        <div
+          className="shrink-0 flex items-start justify-between gap-4 p-5 pb-3 border-b border-[color:hsl(215_22%_82%)] bg-white"
+        >
           <div>
-            <div className="text-xs opacity-70">Accept quote & create job</div>
-            <div className="text-lg font-semibold mt-1">
+            <div className="text-xs text-slate-600">Accept quote & create job</div>
+            <div className="text-lg font-semibold mt-1 text-slate-900">
               {recipient} • {quote.price_currency} {quote.price_amount}
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md px-3 py-1 text-sm font-semibold border cursor-pointer transition-colors duration-150 border-[color:var(--color-border)] bg-transparent text-[color:var(--color-foreground)] hover:bg-[color:var(--color-surface-2)]"
+            className="rounded-md px-3 py-1 text-sm font-semibold border cursor-pointer transition-colors duration-150 border-slate-300 bg-white text-slate-800 hover:bg-slate-100"
           >
             Close
           </button>
         </div>
 
-        <div className="flex-1 min-h-0 overflow-y-auto crm-scrollbar p-5 pt-4">
+        <div className="flex-1 min-h-0 overflow-y-auto crm-scrollbar bg-white p-5 pt-4">
 
         <form
           onSubmit={async (e) => {
@@ -162,22 +163,23 @@ export default function AcceptQuoteJobModal({
               setSubmitting(false)
             }
           }}
-          className="flex flex-col gap-4"
+          className="flex flex-col gap-4 text-slate-900"
         >
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="rounded-lg border p-3" style={{ borderColor: 'var(--color-border)' }}>
-              <div className="text-sm font-semibold mb-2">Customer</div>
+            <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-3">
+              <div className="text-sm font-semibold mb-2 text-slate-900">Customer</div>
               {loadingMatches ? (
-                <div className="text-sm opacity-80">Searching for matching customer…</div>
+                <div className="text-sm text-slate-600">Searching for matching customer…</div>
               ) : (
                 <>
                   {matches.length > 0 ? (
                     <div className="flex flex-col gap-2">
-                      <label className="flex items-start gap-2 text-sm">
+                      <label className="flex items-start gap-2 text-sm text-slate-900">
                         <input
                           type="radio"
                           checked={mode === 'existing'}
                           onChange={() => setMode('existing')}
+                          className="mt-0.5"
                         />
                         <span>Merge into an existing customer</span>
                       </label>
@@ -185,8 +187,7 @@ export default function AcceptQuoteJobModal({
                       <select
                         value={selectedCustomerId ?? ''}
                         onChange={(e) => setSelectedCustomerId(e.target.value)}
-                        className="rounded-md border px-3 py-2 outline-none"
-                        style={{ borderColor: 'var(--color-border)' }}
+                        className="rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none"
                         disabled={mode !== 'existing'}
                       >
                         {matches.map((c) => (
@@ -196,43 +197,43 @@ export default function AcceptQuoteJobModal({
                         ))}
                       </select>
 
-                      <label className="flex items-start gap-2 text-sm">
+                      <label className="flex items-start gap-2 text-sm text-slate-900">
                         <input
                           type="radio"
                           checked={mode === 'new'}
                           onChange={() => setMode('new')}
+                          className="mt-0.5"
                         />
                         <span>Create a new customer instead</span>
                       </label>
                     </div>
                   ) : (
-                    <div className="text-sm opacity-80">No matching customer found.</div>
+                    <div className="text-sm text-slate-600">No matching customer found.</div>
                   )}
                 </>
               )}
             </div>
 
-            <div className="rounded-lg border p-3" style={{ borderColor: 'var(--color-border)' }}>
-              <div className="text-sm font-semibold mb-2">Scheduling</div>
-              <label className="flex flex-col gap-1 text-sm">
+            <div className="rounded-lg border border-slate-200 bg-slate-50/80 p-3">
+              <div className="text-sm font-semibold mb-2 text-slate-900">Scheduling</div>
+              <label className="flex flex-col gap-1 text-sm text-slate-900">
                 Scheduled date
                 <input
                   type="date"
                   value={scheduledDate}
                   onChange={(e) => setScheduledDate(e.target.value)}
-                  className="rounded-md border px-3 py-2 outline-none"
-                  style={{ borderColor: 'var(--color-border)' }}
+                  className="rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none"
                   required
                 />
               </label>
 
-              <label className="flex flex-col gap-1 text-sm mt-3">
+              <label className="flex flex-col gap-1 text-sm mt-3 text-slate-900">
                 Notes (optional)
                 <textarea
                   value={jobNotes}
                   onChange={(e) => setJobNotes(e.target.value)}
-                  className="rounded-md border px-3 py-2 outline-none"
-                  style={{ borderColor: 'var(--color-border)', minHeight: 72 }}
+                  className="rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none"
+                  style={{ minHeight: 72 }}
                 />
               </label>
 
@@ -242,18 +243,17 @@ export default function AcceptQuoteJobModal({
                   checked={isRecurring}
                   onChange={(e) => setIsRecurring(e.target.checked)}
                 />
-                <div className="text-sm font-semibold">Recurring</div>
+                <div className="text-sm font-semibold text-slate-900">Recurring</div>
               </div>
 
               {isRecurring ? (
                 <div className="mt-2">
-                  <label className="flex flex-col gap-1 text-sm">
+                  <label className="flex flex-col gap-1 text-sm text-slate-900">
                     Recurrence
                     <select
                       value={recurrenceUnit}
                       onChange={(e) => setRecurrenceUnit(e.target.value as any)}
-                      className="rounded-md border px-3 py-2 outline-none"
-                      style={{ borderColor: 'var(--color-border)' }}
+                      className="rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none"
                     >
                       <option value="weekly">Weekly</option>
                       <option value="biweekly">Biweekly</option>
@@ -263,21 +263,20 @@ export default function AcceptQuoteJobModal({
                 </div>
               ) : null}
 
-              <label className="flex flex-col gap-1 text-sm mt-3">
+              <label className="flex flex-col gap-1 text-sm mt-3 text-slate-900">
                 Reminder (optional)
                 <input
                   type="datetime-local"
                   value={reminderAtLocal}
                   onChange={(e) => setReminderAtLocal(e.target.value)}
-                  className="rounded-md border px-3 py-2 outline-none"
-                  style={{ borderColor: 'var(--color-border)' }}
+                  className="rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none"
                 />
               </label>
             </div>
           </div>
 
           {error ? (
-            <div className="text-sm rounded-lg border px-3 py-2" style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface-2)', color: 'var(--color-danger)' }}>
+            <div className="text-sm rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-red-800">
               {error}
             </div>
           ) : null}
@@ -286,7 +285,7 @@ export default function AcceptQuoteJobModal({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-md px-3 py-2 text-sm font-semibold border cursor-pointer transition-colors duration-150 border-[color:var(--color-border)] bg-transparent text-[color:var(--color-foreground)] hover:bg-[color:var(--color-surface-2)]"
+              className="rounded-md px-3 py-2 text-sm font-semibold border cursor-pointer transition-colors duration-150 border-slate-300 bg-white text-slate-800 hover:bg-slate-100"
               disabled={submitting}
             >
               Cancel
