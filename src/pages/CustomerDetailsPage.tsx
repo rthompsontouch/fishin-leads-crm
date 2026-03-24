@@ -775,7 +775,7 @@ export default function CustomerDetailsPage() {
           aria-labelledby="schedule-job-modal-title"
         >
           <div
-            className="my-4 w-full max-w-lg max-h-[min(92dvh,720px)] min-h-0 rounded-xl border shadow-lg flex flex-col bg-white ring-1 ring-black/5"
+            className="crm-modal-panel-mobile-fs my-4 w-full max-w-lg max-h-[min(92dvh,720px)] min-h-0 rounded-xl border shadow-lg flex flex-col bg-white ring-1 ring-black/5"
             style={{ borderColor: 'hsl(215 20% 88%)' }}
             onMouseDown={(e) => e.stopPropagation()}
           >
@@ -1050,7 +1050,7 @@ export default function CustomerDetailsPage() {
           aria-labelledby="add-service-modal-title"
         >
           <div
-            className="my-4 w-full max-w-lg max-h-[min(92dvh,720px)] min-h-0 rounded-xl border shadow-lg flex flex-col bg-white ring-1 ring-black/5"
+            className="crm-modal-panel-mobile-fs my-4 w-full max-w-lg max-h-[min(92dvh,720px)] min-h-0 rounded-xl border shadow-lg flex flex-col bg-white ring-1 ring-black/5"
             style={{ borderColor: 'hsl(215 20% 88%)' }}
             onMouseDown={(e) => e.stopPropagation()}
           >
@@ -1094,7 +1094,7 @@ export default function CustomerDetailsPage() {
           aria-labelledby="add-note-modal-title"
         >
           <div
-            className="my-4 w-full max-w-lg max-h-[min(92dvh,720px)] min-h-0 rounded-xl border shadow-lg flex flex-col bg-white ring-1 ring-black/5"
+            className="crm-modal-panel-mobile-fs my-4 w-full max-w-lg max-h-[min(92dvh,720px)] min-h-0 rounded-xl border shadow-lg flex flex-col bg-white ring-1 ring-black/5"
             style={{ borderColor: 'hsl(215 20% 88%)' }}
             onMouseDown={(e) => e.stopPropagation()}
           >

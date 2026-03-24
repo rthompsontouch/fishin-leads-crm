@@ -86,7 +86,7 @@ export default function ConfirmDialog({
       aria-describedby={description ? descId : undefined}
     >
       <div
-        className="my-4 w-full max-w-md max-h-[min(88dvh,640px)] min-h-0 flex flex-col rounded-xl shadow-xl ring-1 ring-black/10 overflow-hidden"
+        className="crm-modal-panel-mobile-fs my-4 w-full max-w-md max-h-[min(88dvh,640px)] min-h-0 flex flex-col rounded-xl shadow-xl ring-1 ring-black/10 overflow-hidden"
         style={{
           background: 'var(--color-background, #fff)',
           color: 'var(--crm-content-header-text, #0f172a)',

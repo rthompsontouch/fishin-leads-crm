@@ -43,7 +43,7 @@ export default function ModalScrollBackdrop({
       onMouseDown={backdropMouseDown}
     >
       <div
-        className="flex min-h-[100dvh] items-center justify-center p-3 sm:p-5"
+        className="flex min-h-[100dvh] items-center justify-center p-3 sm:p-5 max-md:items-stretch max-md:justify-stretch max-md:p-0"
         onMouseDown={backdropMouseDown}
       >
         {children}

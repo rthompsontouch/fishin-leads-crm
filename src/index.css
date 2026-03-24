@@ -399,12 +399,26 @@ code {
     margin-bottom: 0.5rem;
   }
 
-  #root .crm-page-header > *:not(.crm-page-header-title) {
+  /* Only stack *wrapper divs* (e.g. lead list actions). Don’t apply to bare <button>s — that stacks icon/text vertically. */
+  #root .crm-page-header > div {
     width: 100%;
     display: flex;
     flex-direction: column;
     align-items: stretch;
     gap: 0.5rem;
+  }
+}
+
+/* Modal panels using ModalScrollBackdrop — full viewport on small screens */
+@media (max-width: 767px) {
+  #root .crm-modal-panel-mobile-fs {
+    min-height: 100dvh !important;
+    max-height: 100dvh !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    border-radius: 0 !important;
   }
 }
 

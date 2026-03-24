@@ -275,14 +275,14 @@ export default function SettingsPage() {
         <button
           type="button"
           onClick={() => void handleSignOut()}
-          className="inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold border-2 cursor-pointer transition-colors duration-150 bg-white hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-danger)] focus-visible:ring-offset-2"
+          className="inline-flex flex-row flex-nowrap items-center justify-center gap-2 rounded-lg px-4 py-3 text-sm font-semibold border-2 cursor-pointer transition-colors duration-150 bg-white max-md:w-full sm:w-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-danger)] focus-visible:ring-offset-2 hover:!bg-[color:var(--color-danger)] hover:!text-white hover:!border-[color:var(--color-danger)]"
           style={{
             color: 'var(--color-danger)',
             borderColor: 'color-mix(in srgb, var(--color-danger) 50%, hsl(215 22% 82%))',
           }}
         >
-          <LogOut size={18} className="shrink-0" strokeWidth={2.25} aria-hidden />
-          Sign out
+          <LogOut size={18} className="shrink-0 pointer-events-none" strokeWidth={2.25} aria-hidden />
+          <span>Sign out</span>
         </button>
       </div>
 

@@ -140,7 +140,7 @@ export default function ExportDataModal({
       aria-labelledby="export-modal-title"
     >
       <div
-        className="my-4 w-full max-w-lg max-h-[min(92dvh,720px)] min-h-0 rounded-xl border shadow-lg flex flex-col"
+        className="crm-modal-panel-mobile-fs my-4 w-full max-w-lg max-h-[min(92dvh,720px)] min-h-0 rounded-xl border shadow-lg flex flex-col"
         style={{
           borderColor: 'var(--color-border)',
           background: 'var(--color-background)',

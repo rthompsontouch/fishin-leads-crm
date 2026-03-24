@@ -94,7 +94,7 @@ export default function AcceptQuoteJobModal({
   return (
     <ModalScrollBackdrop onBackdropClose={onClose} zClass="z-50" role="dialog" aria-modal>
       <div
-        className="my-4 w-full max-w-[min(980px,100%)] max-h-[min(92dvh,920px)] min-h-0 flex flex-col rounded-xl border shadow-lg overflow-hidden"
+        className="crm-modal-panel-mobile-fs my-4 w-full max-w-[min(980px,100%)] max-h-[min(92dvh,920px)] min-h-0 flex flex-col rounded-xl border shadow-lg overflow-hidden"
         style={{ borderColor: 'var(--color-border)', background: 'var(--color-background)' }}
         onMouseDown={(e) => e.stopPropagation()}
       >

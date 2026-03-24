@@ -45,13 +45,20 @@ export default function ForgotPasswordDialog({ open, onClose, initialEmail = '' 
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-6"
+      className="fixed inset-0 z-[100] flex items-end justify-center p-0 md:items-center md:p-6"
       role="presentation"
     >
       <button
         type="button"
-        className="absolute inset-0 bg-black/50 backdrop-blur-[2px] cursor-default border-0"
+        className="absolute inset-0 bg-black/50 backdrop-blur-[2px] cursor-default border-0 max-md:hidden"
         aria-label="Close dialog"
+        onClick={onClose}
+      />
+      <button
+        type="button"
+        className="absolute inset-0 cursor-default border-0 md:hidden bg-black/40"
+        aria-hidden
+        tabIndex={-1}
         onClick={onClose}
       />
       <div
@@ -59,20 +66,24 @@ export default function ForgotPasswordDialog({ open, onClose, initialEmail = '' 
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="relative z-10 w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl border shadow-2xl max-h-[90dvh] overflow-y-auto"
+        className="relative z-10 flex w-full flex-col overflow-hidden border shadow-2xl max-md:fixed max-md:inset-0 max-md:h-[100dvh] max-md:max-h-[100dvh] max-md:rounded-none max-md:border-x-0 max-md:border-t-0 md:max-h-[90dvh] md:max-w-md md:rounded-2xl"
         style={{
           background: 'var(--color-background)',
           borderColor: 'var(--color-border)',
           color: 'var(--color-foreground)',
         }}
+        onMouseDown={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between gap-3 px-5 pt-4 pb-2 border-b" style={{ borderColor: 'var(--color-border)' }}>
-          <h2 id={titleId} className="text-lg font-semibold m-0">
+        <div
+          className="flex shrink-0 items-center justify-between gap-3 border-b px-4 py-3 max-md:pt-[max(0.75rem,env(safe-area-inset-top))]"
+          style={{ borderColor: 'var(--color-border)' }}
+        >
+          <h2 id={titleId} className="text-lg font-semibold m-0 pr-2">
             Reset password
           </h2>
           <button
             type="button"
-            className="shrink-0 rounded-md px-2.5 py-1.5 text-sm font-semibold border cursor-pointer transition-colors hover:opacity-90"
+            className="shrink-0 rounded-lg px-3 py-2 text-sm font-semibold border cursor-pointer min-h-11 transition-colors hover:opacity-90"
             style={{
               borderColor: 'var(--color-border)',
               background: 'var(--color-surface-1)',
@@ -83,7 +94,7 @@ export default function ForgotPasswordDialog({ open, onClose, initialEmail = '' 
             Close
           </button>
         </div>
-        <div className="p-5">
+        <div className="min-h-0 flex-1 overflow-y-auto crm-scrollbar p-4 md:p-5 max-md:pb-[max(1rem,env(safe-area-inset-bottom))]">
           <p className="text-sm opacity-85 m-0 mb-4" style={{ color: 'var(--color-foreground)' }}>
             We&apos;ll email you a link to choose a new password.
           </p>

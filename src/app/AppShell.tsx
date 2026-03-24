@@ -573,11 +573,16 @@ export default function AppShell() {
             color: 'var(--color-foreground)',
           }}
         >
-          <div className="min-w-0 flex-1 flex items-center min-h-12">
+          <Link
+            to="/dashboard"
+            className="min-w-0 flex-1 flex items-center min-h-12 rounded-lg -m-1 p-1 outline-none transition-opacity hover:opacity-90 focus-visible:ring-2 focus-visible:ring-[color:var(--color-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--crm-header-bg)]"
+            aria-label="Dashboard"
+            title="Dashboard"
+          >
             <div className="min-w-0 max-w-[min(100%,18rem)] pr-1">
               <SidebarBrandMark compactLeft mobileHeader />
             </div>
-          </div>
+          </Link>
           <div className="flex items-center gap-2 shrink-0">
             <Link
               to="/settings"
