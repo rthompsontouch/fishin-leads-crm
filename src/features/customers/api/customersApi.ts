@@ -136,17 +136,15 @@ function normalizeCustomerSearchTerm(raw: string): string {
     .trim()
 }
 
-function applyCustomerSearchFilters<T extends { or: (...a: unknown[]) => T }>(
-  query: T,
-  search?: string,
-): T {
+function applyCustomerSearchFilters<Q>(query: Q, search?: string): Q {
   let q = query
   const term = normalizeCustomerSearchTerm(search ?? '')
   if (term) {
     const p = `%${term}%`
-    q = q.or(
+    const builder = q as Q & { or: (filters: string) => Q }
+    q = builder.or(
       `name.ilike.${p},primary_first_name.ilike.${p},primary_last_name.ilike.${p},primary_email.ilike.${p},primary_phone.ilike.${p},email.ilike.${p},phone.ilike.${p},industry.ilike.${p},status.ilike.${p}`,
-    ) as T
+    )
   }
   return q
 }

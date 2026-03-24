@@ -49,20 +49,25 @@ function normalizeLeadSearchTerm(raw: string): string {
     .trim()
 }
 
-function applyLeadListFilters<T extends { is: (...a: unknown[]) => T; or: (...a: unknown[]) => T }>(
-  query: T,
+type LeadListQueryOps<Q> = Q & {
+  is: (column: string, value: null) => Q
+  or: (filters: string) => Q
+}
+
+function applyLeadListFilters<Q>(
+  query: Q,
   opts: { uncontactedOnly: boolean; search?: string },
-): T {
+): Q {
   let q = query
   if (opts.uncontactedOnly) {
-    q = q.is('last_contacted_at', null) as T
+    q = (q as LeadListQueryOps<Q>).is('last_contacted_at', null)
   }
   const term = normalizeLeadSearchTerm(opts.search ?? '')
   if (term) {
     const p = `%${term}%`
-    q = q.or(
+    q = (q as LeadListQueryOps<Q>).or(
       `first_name.ilike.${p},last_name.ilike.${p},company.ilike.${p},email.ilike.${p},phone.ilike.${p},status.ilike.${p},source.ilike.${p}`,
-    ) as T
+    )
   }
   return q
 }
