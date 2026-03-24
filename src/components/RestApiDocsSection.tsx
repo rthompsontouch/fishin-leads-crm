@@ -3,10 +3,9 @@ import { BookOpen, ChevronDown, ClipboardCheck, Code2 } from 'lucide-react'
 
 const mono = 'text-xs font-mono break-all whitespace-pre-wrap'
 
-const detailsClass =
-  'rounded-xl border overflow-hidden group border-[color:var(--color-border)]'
+const detailsClass = 'rounded-xl border-2 overflow-hidden group border-[hsl(215_22%_72%)]'
 const summaryClass =
-  'cursor-pointer list-none px-3 py-3 flex items-center justify-between gap-2 text-sm font-semibold transition-colors hover:bg-[color:var(--color-surface-2)] [&::-webkit-details-marker]:hidden bg-[color:var(--color-surface-1)]'
+  'cursor-pointer list-none px-3 py-3 flex items-center justify-between gap-2 text-sm font-semibold transition-colors hover:bg-slate-200/80 [&::-webkit-details-marker]:hidden bg-slate-100 text-slate-800'
 
 function OpenDocsPanel({
   title,
@@ -26,11 +25,13 @@ function OpenDocsPanel({
 
   return (
     <div
-      className="rounded-lg border p-4 text-sm space-y-2"
-      style={{ borderColor: border, background: bg }}
+      className="rounded-lg border-2 p-4 text-sm space-y-2 bg-white"
+      style={{ borderColor: border, background: variant === 'warning' ? bg : '#fff' }}
     >
-      <div className="font-semibold">{title}</div>
-      {children}
+      <div className="font-semibold" style={{ color: 'var(--crm-content-header-text, #0f172a)' }}>
+        {title}
+      </div>
+      <div className="text-slate-700">{children}</div>
     </div>
   )
 }
@@ -59,44 +60,36 @@ function CollapsibleCodeExample({
   return (
     <details className={detailsClass}>
       <summary className={summaryClass}>
-        <span className="truncate min-w-0">{title}</span>
-        <ChevronDown
-          size={18}
-          className="shrink-0 opacity-70 transition-transform duration-200 group-open:rotate-180"
-          aria-hidden
-        />
-      </summary>
-      <div
-        className="border-t"
-        style={{ borderColor: 'var(--color-border)', background: 'var(--color-background)' }}
-      >
-        {description ? (
-          <div
-            className="text-xs opacity-75 px-3 py-2 border-b"
-            style={{ borderColor: 'var(--color-border)' }}
+        <span className="truncate min-w-0 flex-1 text-left">{title}</span>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            aria-label={copied ? 'Copied to clipboard' : 'Copy code to clipboard'}
+            onClick={(e) => {
+              e.preventDefault()
+              e.stopPropagation()
+              void copy()
+            }}
+            className="shrink-0 inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-semibold border-2 cursor-pointer transition-colors bg-white border-[hsl(215_22%_72%)] text-slate-800 hover:bg-slate-100"
           >
+            {copied ? <ClipboardCheck size={14} aria-hidden /> : <Code2 size={14} aria-hidden />}
+            {copied ? 'Copied' : 'Copy'}
+          </button>
+          <ChevronDown
+            size={18}
+            className="shrink-0 text-slate-600 transition-transform duration-200 group-open:rotate-180 pointer-events-none"
+            aria-hidden
+          />
+        </div>
+      </summary>
+      <div className="border-t border-[hsl(215_22%_88%)] bg-white">
+        {description ? (
+          <div className="text-xs text-slate-600 px-3 py-2 border-b border-[hsl(215_22%_88%)]">
             {description}
           </div>
         ) : null}
-        <div
-          className="flex items-center justify-end gap-2 px-3 py-2 border-b"
-          style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface-1)' }}
-        >
-          <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault()
-              void copy()
-            }}
-            className="shrink-0 inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-semibold border cursor-pointer transition-colors border-[color:var(--color-border)] bg-transparent hover:bg-[color:var(--color-surface-2)]"
-          >
-            {copied ? <ClipboardCheck size={14} /> : <Code2 size={14} />}
-            {copied ? 'Copied' : 'Copy'}
-          </button>
-        </div>
         <pre
-          className={`${mono} p-3 max-h-64 overflow-auto crm-scrollbar m-0`}
-          style={{ background: 'var(--color-background)', color: 'var(--color-foreground)' }}
+          className={`${mono} p-3 max-h-64 overflow-auto crm-scrollbar m-0 bg-slate-50 text-slate-900`}
         >
           {code}
         </pre>
@@ -160,31 +153,32 @@ const customers = await res.json()`
       {variant === 'card' ? (
         <div className="flex items-start gap-3">
           <BookOpen className="shrink-0 mt-0.5 text-amber-500" size={22} />
-          <div>
+          <div style={{ color: 'var(--crm-content-header-text, #0f172a)' }}>
             <h2 className="text-lg font-semibold">REST API (build your own app)</h2>
-            <p className="text-sm opacity-80 mt-1">
-              This CRM runs on <strong>Supabase</strong>. Your data is available through the standard{' '}
-              <strong>PostgREST</strong> API at <code className="text-xs">{baseExample}</code>
+            <p className="text-sm text-slate-600 mt-1">
+              This CRM runs on <strong className="text-slate-800">Supabase</strong>. Your data is available through the standard{' '}
+              <strong className="text-slate-800">PostgREST</strong> API at{' '}
+              <code className="text-xs text-slate-800">{baseExample}</code>
               {rawUrl ? '' : ' (set VITE_SUPABASE_URL in .env to show your project URL here).'}
             </p>
-            <p className="text-xs opacity-70 mt-2">
+            <p className="text-xs text-slate-600 mt-2">
               Security and headers stay visible; each API example below is collapsed until you open it.
             </p>
           </div>
         </div>
       ) : (
-        <div className="space-y-1">
-          <p className="text-sm opacity-80">
-            Base URL: <code className="text-xs break-all">{baseExample}</code>
+        <div className="space-y-1" style={{ color: 'var(--crm-content-header-text, #0f172a)' }}>
+          <p className="text-sm text-slate-700">
+            Base URL: <code className="text-xs break-all text-slate-900">{baseExample}</code>
           </p>
-          <p className="text-xs opacity-70">
+          <p className="text-xs text-slate-600">
             Security and headers are always shown. Expand an API example for notes and copy-paste code.
           </p>
         </div>
       )}
 
       <OpenDocsPanel title="Security checklist" variant="warning">
-        <ul className="list-disc pl-5 opacity-90 space-y-1 text-sm m-0">
+        <ul className="list-disc pl-5 space-y-1 text-sm m-0 text-slate-800">
           <li>
             Use the <strong>publishable (anon) key</strong> in mobile/web clients — never the{' '}
             <strong>service_role</strong> key in a browser or untrusted app.
@@ -201,7 +195,7 @@ const customers = await res.json()`
       </OpenDocsPanel>
 
       <OpenDocsPanel title="Required headers & documentation links">
-        <ul className="list-disc pl-5 opacity-85 space-y-1 text-sm m-0">
+        <ul className="list-disc pl-5 space-y-1 text-sm m-0 text-slate-800">
           <li>
             <code className="text-xs">apikey: &lt;VITE_SUPABASE_PUBLISHABLE_KEY&gt;</code> (same as anon key)
           </li>
@@ -209,7 +203,7 @@ const customers = await res.json()`
             <code className="text-xs">Authorization: Bearer &lt;user JWT&gt;</code> after sign-in
           </li>
         </ul>
-        <p className="text-xs opacity-70 m-0">
+        <p className="text-xs text-slate-600 m-0 mt-2">
           Docs:{' '}
           <a
             href="https://supabase.com/docs/guides/api"
@@ -232,7 +226,9 @@ const customers = await res.json()`
       </OpenDocsPanel>
 
       <div className="space-y-2">
-        <h3 className="text-xs font-bold uppercase tracking-wider opacity-50 px-0.5">API examples</h3>
+        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 px-0.5">
+          API examples
+        </h3>
         <div className="flex flex-col gap-2">
           <CollapsibleCodeExample
             title="List customers"
@@ -273,7 +269,7 @@ const customers = await res.json()`
       </div>
 
       <OpenDocsPanel title="Tables & filter cheat sheet">
-        <p className="text-xs opacity-85 m-0">
+        <p className="text-xs text-slate-800 m-0">
           Main tables: <code className="text-xs">customers</code>, <code className="text-xs">leads</code>,{' '}
           <code className="text-xs">customer_notes</code>, <code className="text-xs">lead_notes</code>,{' '}
           <code className="text-xs">service_entries</code>. Column names match your database (see Supabase
@@ -289,10 +285,7 @@ const customers = await res.json()`
   }
 
   return (
-    <div
-      className="rounded-xl border p-6 space-y-4"
-      style={{ borderColor: 'var(--color-border)' }}
-    >
+    <div className="rounded-xl border-2 border-[hsl(215_22%_72%)] bg-white p-6 space-y-4 shadow-sm ring-1 ring-black/5">
       {body}
     </div>
   )

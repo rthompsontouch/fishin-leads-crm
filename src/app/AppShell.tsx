@@ -1,6 +1,5 @@
-import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { Link, Outlet, useLocation } from 'react-router-dom'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { supabase } from '../lib/supabaseClient'
 import { useQuery } from '@tanstack/react-query'
 import { getCompanyLogoPublicUrl, getMyProfile } from '../features/account/api/accountApi'
 import type { ComponentType } from 'react'
@@ -10,13 +9,13 @@ import {
   ChevronRight,
   ClipboardList,
   LayoutDashboard,
-  LogOut,
   Menu,
   PanelLeftClose,
   PanelLeftOpen,
   PlugZap,
   Settings,
   User,
+  UserCircle,
   Users,
   X,
 } from 'lucide-react'
@@ -57,9 +56,16 @@ const topNavItems: Array<{
 ]
 
 const settingsSubNav = [
-  { href: '/settings?section=account', label: 'Account information' },
-  { href: '/settings?section=security', label: 'Security' },
+  { href: '/settings#settings-account', label: 'Account information' },
+  { href: '/settings#settings-security', label: 'Security' },
 ] as const
+
+function isSettingsSubActive(href: string, pathname: string, hash: string) {
+  const [path, fragment] = href.split('#')
+  if (pathname !== path) return false
+  if (!fragment) return true
+  return hash === `#${fragment}`
+}
 
 const integrationSubNav = [
   { href: '/integrations/leads', label: 'Website & leads' },
@@ -91,7 +97,7 @@ const EXTRA_BRAND_NAMES = [
   'fishin-logo.svg',
 ] as const
 
-function SidebarBrandMark() {
+function SidebarBrandMark({ compactLeft }: { compactLeft?: boolean }) {
   const { data: manifest } = useQuery({
     queryKey: ['brand-manifest'],
     queryFn: fetchBrandManifest,
@@ -124,7 +130,12 @@ function SidebarBrandMark() {
 
   if (!candidates.length || attempt >= candidates.length) {
     return (
-      <div className="text-center text-sm font-semibold tracking-tight px-2">
+      <div
+        className={[
+          'text-sm font-semibold tracking-tight px-2',
+          compactLeft ? 'text-left truncate' : 'text-center',
+        ].join(' ')}
+      >
         Fishin Leads CRM
       </div>
     )
@@ -135,7 +146,10 @@ function SidebarBrandMark() {
       src={candidates[attempt]}
       alt="Fishin Leads CRM"
       title="Fishin Leads CRM"
-      className="mx-auto max-h-10 max-w-[200px] w-auto object-contain object-center"
+      className={[
+        'max-h-10 max-w-[200px] w-auto object-contain',
+        compactLeft ? 'max-h-8 max-w-[140px] object-left object-top' : 'mx-auto object-center',
+      ].join(' ')}
       onError={() => setAttempt((n) => n + 1)}
     />
   )
@@ -143,7 +157,6 @@ function SidebarBrandMark() {
 
 export default function AppShell() {
   const location = useLocation()
-  const navigate = useNavigate()
 
   /** Integrations sub-nav: toggle manually; open when entering /integrations*, close when leaving. */
   const [integrationsOpen, setIntegrationsOpen] = useState(() =>
@@ -192,6 +205,15 @@ export default function AppShell() {
     setIsMobileMenuOpen(false)
   }, [location.pathname])
 
+  useEffect(() => {
+    if (!isMobileMenuOpen) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = prev
+    }
+  }, [isMobileMenuOpen])
+
   const { data: profile, isPending: isProfilePending } = useQuery({
     queryKey: ['my-profile'],
     queryFn: () => getMyProfile(),
@@ -202,77 +224,84 @@ export default function AppShell() {
     [profile?.company_logo_path],
   )
 
-  async function signOut() {
-    if (!supabase) return
-    await supabase.auth.signOut()
-    navigate('/login')
-  }
-
   const companyLabel = profile?.company_name?.trim() || 'Your company'
   const tierLabel = profile?.tier ?? 'Freemium'
 
   /** Matches header hamburger / other neutral bordered controls */
   const shellIconButtonClass =
-    'cursor-pointer rounded-md px-2 py-2 text-sm font-medium border transition-colors duration-150 border-[color:var(--color-border)] bg-transparent text-[color:var(--color-foreground)] hover:bg-[color:var(--color-surface-2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-primary)]'
+    'cursor-pointer rounded-md px-2 py-2 text-sm font-medium border transition-colors duration-150 border-[color:var(--color-border)] bg-transparent text-[color:var(--color-foreground)] hover:bg-[color:var(--crm-nav-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-primary)]'
 
   return (
     <div
-      className="min-h-dvh flex"
+      className="min-h-dvh flex crm-shell"
       style={{
-        background: 'var(--color-background)',
+        background: 'var(--crm-shell-bg)',
         color: 'var(--color-foreground)',
       }}
     >
       <aside
         className={[
-          'shrink-0 border-r hidden md:flex md:flex-col sticky top-0 h-[100dvh] overflow-y-auto',
-          isCollapsed ? 'w-20 px-3 py-2' : 'w-72 p-4',
+          'shrink-0 hidden md:flex md:flex-col sticky top-0 h-[100dvh] overflow-y-auto',
+          isCollapsed ? 'w-20 pl-3 pr-0 py-2' : 'w-72 pl-4 pr-0 py-4',
         ].join(' ')}
-        style={{ borderColor: 'var(--color-border)' }}
       >
         <div className="flex flex-col flex-1 min-h-0 min-w-0">
-          <div className={isCollapsed ? 'mb-3' : 'mb-6'}>
+          <div
+            className={isCollapsed ? 'mb-0 -ml-3 -mt-2 pl-3' : 'mb-0 -ml-4 -mt-4 pl-4'}
+            style={{ background: 'var(--crm-header-bg)' }}
+          >
             {isCollapsed ? (
               <button
                 type="button"
                 onClick={() => setIsCollapsed((v) => !v)}
                 className={[
-                  'cursor-pointer w-full rounded-md py-2 flex items-center justify-center h-12',
-                  'transition-colors hover:bg-[color:var(--color-surface-2)]',
+                  'group cursor-pointer w-full rounded-md py-0 flex items-center justify-center h-12',
+                  'bg-transparent transition-colors',
                   'outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-primary)]',
                 ].join(' ')}
                 aria-label="Expand sidebar"
                 title="Expand sidebar"
               >
-                <PanelLeftOpen size={22} className="shrink-0 text-slate-500" />
+                <PanelLeftOpen
+                  size={26}
+                  className="shrink-0 text-slate-500 transition-colors group-hover:text-slate-300"
+                />
               </button>
             ) : (
               <div className="flex items-center gap-1 min-h-[2.5rem]">
-                <Link
-                  to="/dashboard"
-                  className="cursor-pointer min-w-0 flex-1 flex justify-center items-center rounded-lg px-2 py-2 transition-colors hover:bg-[color:var(--color-surface-2)] outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-primary)]"
-                  title="Dashboard"
+                <div
+                  className="min-w-0 flex-1 flex justify-center items-center rounded-lg px-2 py-0"
+                  title="Fishin Leads CRM"
                 >
                   <SidebarBrandMark />
-                </Link>
+                </div>
                 <button
                   type="button"
                   onClick={() => setIsCollapsed((v) => !v)}
                   className={[
-                    'cursor-pointer shrink-0 rounded-md h-12 w-12 flex items-center justify-center',
-                    'transition-colors hover:bg-[color:var(--color-surface-2)]',
+                    'group cursor-pointer shrink-0 rounded-md h-16 w-16 flex items-center justify-center',
+                    'bg-transparent transition-colors',
                     'outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-primary)]',
                   ].join(' ')}
                   aria-label="Collapse sidebar"
                   title="Collapse sidebar"
                 >
-                  <PanelLeftClose size={18} className="shrink-0 text-slate-500" />
+                  <PanelLeftClose
+                    size={24}
+                    className="shrink-0 text-slate-500 transition-colors group-hover:text-slate-300"
+                  />
                 </button>
               </div>
             )}
           </div>
 
-          <nav className="flex flex-col gap-2 flex-1 min-h-0">
+          <nav
+            className={[
+              'flex flex-col gap-2 flex-1 min-h-0 min-w-0 pt-3',
+              isCollapsed ? '-ml-3 pl-3 w-[calc(100%+0.75rem)]' : '-ml-4 pl-4 w-[calc(100%+1rem)]',
+            ].join(' ')}
+            style={{ background: 'var(--crm-sidebar-links-bg)' }}
+          >
             {topNavItems.map((item) => {
               const isActive =
                 location.pathname === item.href ||
@@ -288,8 +317,8 @@ export default function AppShell() {
                     'cursor-pointer w-full rounded-md py-2 flex items-center transition-colors',
                     isCollapsed ? 'justify-center px-0 h-12' : 'justify-start px-3',
                     isActive
-                      ? 'bg-[color:var(--color-primary)] text-white'
-                      : 'hover:bg-[color:var(--color-surface-2)]',
+                      ? 'bg-[color:var(--crm-nav-active-bg)] text-[color:var(--crm-nav-active-text)] rounded-r-none'
+                      : 'hover:bg-[color:var(--crm-nav-hover)] rounded-r-none',
                   ].join(' ')}
                   title={isCollapsed ? item.label : undefined}
                 >
@@ -297,7 +326,7 @@ export default function AppShell() {
                     size={isCollapsed ? 22 : 18}
                     className={[
                       'shrink-0 transition-colors',
-                      isActive ? 'text-white' : item.iconColorClass,
+                      isActive ? 'text-[color:var(--crm-nav-active-text)]' : item.iconColorClass,
                     ].join(' ')}
                   />
                   <span
@@ -318,8 +347,8 @@ export default function AppShell() {
                 className={[
                   'cursor-pointer w-full rounded-md py-2 flex items-center justify-center h-12 transition-colors',
                   isIntegrationArea(location.pathname)
-                    ? 'bg-[color:var(--color-primary)] text-white'
-                    : 'hover:bg-[color:var(--color-surface-2)]',
+                    ? 'bg-[color:var(--crm-nav-active-bg)] text-[color:var(--crm-nav-active-text)] rounded-r-none'
+                    : 'hover:bg-[color:var(--crm-nav-hover)] rounded-r-none',
                 ].join(' ')}
                 title="Integrations"
               >
@@ -327,7 +356,9 @@ export default function AppShell() {
                   size={22}
                   className={[
                     'shrink-0 transition-colors',
-                    isIntegrationArea(location.pathname) ? 'text-white' : 'text-amber-500',
+                    isIntegrationArea(location.pathname)
+                      ? 'text-[color:var(--crm-nav-active-text)]'
+                      : 'text-amber-500',
                   ].join(' ')}
                 />
               </Link>
@@ -336,21 +367,10 @@ export default function AppShell() {
                 <button
                   type="button"
                   onClick={() => setIntegrationsOpen((v) => !v)}
-                  className={[
-                    'cursor-pointer w-full rounded-md py-2 flex items-center gap-2 px-3 text-left transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-primary)]',
-                    isIntegrationArea(location.pathname)
-                      ? 'bg-[color:var(--color-primary)] text-white'
-                      : 'hover:bg-[color:var(--color-surface-2)]',
-                  ].join(' ')}
+                  className="cursor-pointer w-full rounded-md py-2 flex items-center gap-2 px-3 text-left transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-primary)] hover:bg-[color:var(--crm-nav-hover)] rounded-r-none"
                   aria-expanded={integrationsOpen}
                 >
-                  <PlugZap
-                    size={18}
-                    className={[
-                      'shrink-0 transition-colors',
-                      isIntegrationArea(location.pathname) ? 'text-white' : 'text-amber-500',
-                    ].join(' ')}
-                  />
+                  <PlugZap size={18} className="shrink-0 transition-colors text-amber-500" />
                   <span className="font-medium text-sm flex-1">Integrations</span>
                   {integrationsOpen ? (
                     <ChevronDown size={16} className="shrink-0 opacity-80" />
@@ -370,10 +390,10 @@ export default function AppShell() {
                           key={sub.href}
                           to={sub.href}
                           className={[
-                            'cursor-pointer rounded-md py-1.5 px-2 text-sm font-medium transition-colors',
+                            'block w-full cursor-pointer rounded-l-md rounded-r-none py-1.5 px-2 text-sm font-medium transition-colors text-left',
                             subActive
-                              ? 'bg-[color:var(--color-primary)] text-white'
-                              : 'hover:bg-[color:var(--color-surface-2)]',
+                              ? 'bg-[color:var(--crm-nav-active-bg)] text-[color:var(--crm-nav-active-text)]'
+                              : 'hover:bg-[color:var(--crm-nav-hover)]',
                           ].join(' ')}
                         >
                           {sub.label}
@@ -387,12 +407,12 @@ export default function AppShell() {
 
             {isCollapsed ? (
               <Link
-                to="/settings?section=account"
+                to="/settings"
                 className={[
                   'cursor-pointer w-full rounded-md py-2 flex items-center justify-center h-12 transition-colors',
                   isSettingsArea(location.pathname)
-                    ? 'bg-[color:var(--color-primary)] text-white'
-                    : 'hover:bg-[color:var(--color-surface-2)]',
+                    ? 'bg-[color:var(--crm-nav-active-bg)] text-[color:var(--crm-nav-active-text)] rounded-r-none'
+                    : 'hover:bg-[color:var(--crm-nav-hover)] rounded-r-none',
                 ].join(' ')}
                 title="Settings"
               >
@@ -400,7 +420,9 @@ export default function AppShell() {
                   size={22}
                   className={[
                     'shrink-0 transition-colors',
-                    isSettingsArea(location.pathname) ? 'text-white' : 'text-slate-500',
+                    isSettingsArea(location.pathname)
+                      ? 'text-[color:var(--crm-nav-active-text)]'
+                      : 'text-slate-500',
                   ].join(' ')}
                 />
               </Link>
@@ -409,21 +431,10 @@ export default function AppShell() {
                 <button
                   type="button"
                   onClick={() => setSettingsOpen((v) => !v)}
-                  className={[
-                    'cursor-pointer w-full rounded-md py-2 flex items-center gap-2 px-3 text-left transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-primary)]',
-                    isSettingsArea(location.pathname)
-                      ? 'bg-[color:var(--color-primary)] text-white'
-                      : 'hover:bg-[color:var(--color-surface-2)]',
-                  ].join(' ')}
+                  className="cursor-pointer w-full rounded-md py-2 flex items-center gap-2 px-3 text-left transition-colors outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-primary)] hover:bg-[color:var(--crm-nav-hover)] rounded-r-none"
                   aria-expanded={settingsOpen}
                 >
-                  <Settings
-                    size={18}
-                    className={[
-                      'shrink-0 transition-colors',
-                      isSettingsArea(location.pathname) ? 'text-white' : 'text-slate-500',
-                    ].join(' ')}
-                  />
+                  <Settings size={18} className="shrink-0 transition-colors text-slate-500" />
                   <span className="font-medium text-sm flex-1">Settings</span>
                   {settingsOpen ? (
                     <ChevronDown size={16} className="shrink-0 opacity-80" />
@@ -437,20 +448,16 @@ export default function AppShell() {
                     style={{ borderColor: 'var(--color-border)' }}
                   >
                     {settingsSubNav.map((sub) => {
-                      const subPath = sub.href.split('?')[0]
-                      const subQuery = sub.href.split('?')[1] ?? ''
-                      const active =
-                        location.pathname === subPath &&
-                        (subQuery ? location.search.includes(subQuery) : true)
+                      const active = isSettingsSubActive(sub.href, location.pathname, location.hash)
                       return (
                         <Link
                           key={sub.href}
                           to={sub.href}
                           className={[
-                            'cursor-pointer rounded-md py-1.5 px-2 text-sm font-medium transition-colors',
+                            'block w-full cursor-pointer rounded-l-md rounded-r-none py-1.5 px-2 text-sm font-medium transition-colors text-left',
                             active
-                              ? 'bg-[color:var(--color-primary)] text-white'
-                              : 'hover:bg-[color:var(--color-surface-2)]',
+                              ? 'bg-[color:var(--crm-nav-active-bg)] text-[color:var(--crm-nav-active-text)]'
+                              : 'hover:bg-[color:var(--crm-nav-hover)]',
                           ].join(' ')}
                         >
                           {sub.label}
@@ -466,13 +473,13 @@ export default function AppShell() {
           <Link
             to="/settings"
             className={[
-              'cursor-pointer block rounded-xl transition-colors outline-none focus-visible:outline-none hover:text-[color:var(--color-primary)]',
-              'hover:border-[color:var(--color-primary)] hover:bg-[color:var(--color-surface-2)] mb-2',
-              isCollapsed ? 'h-12 w-12 mx-auto border' : 'border p-0',
+              'group cursor-pointer relative block transition-colors outline-none focus-visible:outline-none mt-auto',
+              isCollapsed
+                ? '-ml-3 -mb-2 w-[calc(100%+0.75rem)] h-12 rounded-none'
+                : '-ml-4 -mb-4 pl-4 pr-4 py-2 rounded-none',
             ].join(' ')}
             style={{
-              borderColor: 'var(--color-border)',
-              background: 'var(--color-surface-1)',
+              background: 'var(--crm-header-bg)',
             }}
             title={isCollapsed ? 'Account settings' : undefined}
           >
@@ -489,9 +496,6 @@ export default function AppShell() {
                 )
               ) : (
                 <>
-                  <div className="text-[10px] font-bold uppercase tracking-wider opacity-70 mb-2">
-                    Account
-                  </div>
                   <div className="flex items-center gap-3 min-w-0">
                     {companyLogoUrl ? (
                       <img
@@ -526,9 +530,6 @@ export default function AppShell() {
                               {tierLabel}
                             </span>
                           </div>
-                          <div className="text-[11px] mt-1.5 opacity-60 mb-1">
-                            Account settings →
-                          </div>
                         </>
                       )}
                     </div>
@@ -536,86 +537,104 @@ export default function AppShell() {
                 </>
               )}
             </div>
+            {!isCollapsed ? (
+              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm font-semibold opacity-0 translate-x-1 transition-all duration-150 group-hover:opacity-100 group-hover:translate-x-0">
+                &gt;
+              </span>
+            ) : null}
           </Link>
-
-          <button
-            type="button"
-            onClick={() => void signOut()}
-            className={[
-              'group cursor-pointer mt-auto w-full rounded-md py-2.5 text-sm font-semibold border transition-colors duration-150',
-              'flex items-center justify-center bg-transparent',
-              'border-[color:var(--color-border)] text-[color:var(--color-foreground)]',
-              'hover:bg-red-600 hover:border-red-600 hover:text-white',
-              isCollapsed ? 'h-12 px-0 gap-0' : 'px-3 gap-2',
-            ].join(' ')}
-            title={isCollapsed ? 'Sign out' : undefined}
-          >
-            <LogOut
-              size={isCollapsed ? 22 : 18}
-              className="shrink-0 text-[color:var(--color-foreground)] transition-colors group-hover:text-white"
-            />
-            <span
-              className={[
-                isCollapsed ? 'hidden' : 'inline',
-                'group-hover:text-white',
-              ].join(' ')}
-            >
-              Sign out
-            </span>
-          </button>
         </div>
       </aside>
 
       <div className="flex-1 flex flex-col min-w-0">
-        <button
-          type="button"
-          onClick={() => setIsMobileMenuOpen(true)}
-          className={`md:hidden fixed top-3 left-4 z-40 shadow-sm ${shellIconButtonClass}`}
-          style={{ background: 'var(--color-background)' }}
-          aria-label="Open menu"
+        <header
+          className="md:hidden fixed top-0 left-0 right-0 z-40 flex items-center justify-between gap-2 border-b shadow-sm"
+          style={{
+            paddingTop: 'max(0.5rem, env(safe-area-inset-top))',
+            paddingLeft: 'max(0.75rem, env(safe-area-inset-left))',
+            paddingRight: 'max(0.75rem, env(safe-area-inset-right))',
+            paddingBottom: '0.5rem',
+            background: 'var(--crm-header-bg)',
+            borderColor: 'var(--color-border)',
+            color: 'var(--color-foreground)',
+          }}
         >
-          <Menu size={18} />
-        </button>
+          <div className="min-w-0 flex-1 flex items-center">
+            <div className="min-w-0 max-w-[min(100%,11rem)] sm:max-w-[13rem]">
+              <SidebarBrandMark compactLeft />
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <Link
+              to="/settings"
+              className={`${shellIconButtonClass} shadow-sm`}
+              style={{ background: 'color-mix(in srgb, var(--color-background) 55%, transparent)' }}
+              aria-label="Account and settings"
+            >
+              <UserCircle size={22} className="shrink-0 opacity-95" strokeWidth={2} />
+            </Link>
+            <button
+              type="button"
+              onClick={() => setIsMobileMenuOpen(true)}
+              className={`${shellIconButtonClass} shadow-sm`}
+              style={{ background: 'color-mix(in srgb, var(--color-background) 55%, transparent)' }}
+              aria-label="Open menu"
+            >
+              <Menu size={22} strokeWidth={2.25} />
+            </button>
+          </div>
+        </header>
 
-        <main className="flex-1 overflow-y-auto px-6 pb-6 pt-1 max-md:pt-[4.5rem] crm-scrollbar min-w-0">
+        <main
+          className="flex-1 overflow-y-auto px-6 pb-6 pt-1 max-md:pt-[calc(3.75rem+env(safe-area-inset-top))] crm-scrollbar min-w-0"
+          style={{ background: 'var(--crm-main-bg)' }}
+        >
           <Outlet />
         </main>
       </div>
 
       {isMobileMenuOpen ? (
         <div
-          className="fixed inset-0 z-[60] md:hidden"
+          className="fixed inset-0 z-[60] md:hidden flex justify-end"
           role="dialog"
           aria-modal="true"
+          aria-label="Main navigation"
         >
-          <div
-            className="absolute inset-0 bg-[color:var(--color-background)] text-[color:var(--color-foreground)]"
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/45 backdrop-blur-[1px]"
+            aria-label="Close menu"
+            onClick={() => setIsMobileMenuOpen(false)}
           />
 
-          <div className="relative h-full flex flex-col">
+          <div
+            className="relative z-10 flex h-[100dvh] w-[min(100%,20rem)] max-w-[92vw] flex-col border-l shadow-2xl"
+            style={{
+              background: 'var(--crm-sidebar-links-bg)',
+              borderColor: 'var(--color-border)',
+              color: 'var(--color-foreground)',
+            }}
+          >
             <div
-              className="h-16 flex items-center justify-between px-5 border-b"
-              style={{ borderColor: 'var(--color-border)' }}
+              className="shrink-0 flex items-center justify-between gap-3 px-4 py-3 border-b"
+              style={{
+                borderColor: 'var(--color-border)',
+                paddingTop: 'max(0.75rem, env(safe-area-inset-top))',
+              }}
             >
-              <Link
-                to="/dashboard"
-                onClick={() => setIsMobileMenuOpen(false)}
-                className="flex items-center min-w-0"
-              >
-                <SidebarBrandMark />
-              </Link>
-
+              <span className="text-sm font-semibold truncate">Menu</span>
               <button
                 type="button"
                 onClick={() => setIsMobileMenuOpen(false)}
                 className={shellIconButtonClass}
+                style={{ background: 'var(--color-background)' }}
                 aria-label="Close menu"
               >
-                <X size={18} />
+                <X size={20} />
               </button>
             </div>
 
-            <nav className="p-5 flex flex-col gap-2 flex-1 overflow-y-auto">
+            <nav className="p-4 flex flex-col gap-1 flex-1 overflow-y-auto crm-scrollbar">
               {topNavItems.map((item) => {
                 const isActive =
                   location.pathname === item.href ||
@@ -650,21 +669,10 @@ export default function AppShell() {
                 <button
                   type="button"
                   onClick={() => setIntegrationsOpen((v) => !v)}
-                  className={[
-                    'cursor-pointer w-full rounded-md px-3 py-3 text-sm font-medium flex items-center gap-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-primary)]',
-                    isIntegrationArea(location.pathname)
-                      ? 'bg-[color:var(--color-primary)] text-white'
-                      : 'hover:bg-[color:var(--color-surface-2)]',
-                  ].join(' ')}
+                  className="cursor-pointer w-full rounded-md px-3 py-3 text-sm font-medium flex items-center gap-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-primary)] hover:bg-[color:var(--color-surface-2)]"
                   aria-expanded={integrationsOpen}
                 >
-                  <PlugZap
-                    size={18}
-                    className={[
-                      'shrink-0 transition-colors',
-                      isIntegrationArea(location.pathname) ? 'text-white' : 'text-amber-500',
-                    ].join(' ')}
-                  />
+                  <PlugZap size={18} className="shrink-0 transition-colors text-amber-500" />
                   <span className="flex-1">Integrations</span>
                   {integrationsOpen ? (
                     <ChevronDown size={18} className="shrink-0 opacity-80" />
@@ -685,7 +693,7 @@ export default function AppShell() {
                           to={sub.href}
                           onClick={() => setIsMobileMenuOpen(false)}
                           className={[
-                            'cursor-pointer rounded-md px-3 py-2.5 text-sm font-medium',
+                            'block w-full cursor-pointer rounded-l-md rounded-r-none px-3 py-2.5 text-sm font-medium text-left',
                             subActive
                               ? 'bg-[color:var(--color-primary)] text-white'
                               : 'hover:bg-[color:var(--color-surface-2)]',
@@ -703,21 +711,10 @@ export default function AppShell() {
                 <button
                   type="button"
                   onClick={() => setSettingsOpen((v) => !v)}
-                  className={[
-                    'cursor-pointer w-full rounded-md px-3 py-3 text-sm font-medium flex items-center gap-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-primary)]',
-                    isSettingsArea(location.pathname)
-                      ? 'bg-[color:var(--color-primary)] text-white'
-                      : 'hover:bg-[color:var(--color-surface-2)]',
-                  ].join(' ')}
+                  className="cursor-pointer w-full rounded-md px-3 py-3 text-sm font-medium flex items-center gap-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-primary)] hover:bg-[color:var(--color-surface-2)]"
                   aria-expanded={settingsOpen}
                 >
-                  <Settings
-                    size={18}
-                    className={[
-                      'shrink-0 transition-colors',
-                      isSettingsArea(location.pathname) ? 'text-white' : 'text-slate-500',
-                    ].join(' ')}
-                  />
+                  <Settings size={18} className="shrink-0 transition-colors text-slate-500" />
                   <span className="flex-1">Settings</span>
                   {settingsOpen ? (
                     <ChevronDown size={18} className="shrink-0 opacity-80" />
@@ -731,18 +728,14 @@ export default function AppShell() {
                     style={{ borderColor: 'var(--color-border)' }}
                   >
                     {settingsSubNav.map((sub) => {
-                      const subPath = sub.href.split('?')[0]
-                      const subQuery = sub.href.split('?')[1] ?? ''
-                      const active =
-                        location.pathname === subPath &&
-                        (subQuery ? location.search.includes(subQuery) : true)
+                      const active = isSettingsSubActive(sub.href, location.pathname, location.hash)
                       return (
                         <Link
                           key={sub.href}
                           to={sub.href}
                           onClick={() => setIsMobileMenuOpen(false)}
                           className={[
-                            'cursor-pointer rounded-md px-3 py-2.5 text-sm font-medium',
+                            'block w-full cursor-pointer rounded-l-md rounded-r-none px-3 py-2.5 text-sm font-medium text-left',
                             active
                               ? 'bg-[color:var(--color-primary)] text-white'
                               : 'hover:bg-[color:var(--color-surface-2)]',
@@ -757,7 +750,13 @@ export default function AppShell() {
               </div>
             </nav>
 
-            <div className="p-5 pb-6 flex flex-col gap-4">
+            <div
+              className="p-4 pt-2 flex flex-col gap-4 shrink-0 border-t"
+              style={{
+                borderColor: 'var(--color-border)',
+                paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))',
+              }}
+            >
               <Link
                 to="/settings"
                 onClick={() => setIsMobileMenuOpen(false)}
@@ -768,9 +767,6 @@ export default function AppShell() {
                   boxShadow: '0 1px 0 rgba(0,0,0,0.04)',
                 }}
               >
-                <div className="text-[10px] font-bold uppercase tracking-wider opacity-70 mb-2">
-                  Account
-                </div>
                 <div className="flex items-center gap-3 min-w-0">
                   {companyLogoUrl ? (
                     <img
@@ -779,7 +775,14 @@ export default function AppShell() {
                       className="h-11 w-11 shrink-0 rounded-lg object-contain border"
                       style={{ borderColor: 'var(--color-border)' }}
                     />
-                  ) : null}
+                  ) : (
+                    <div
+                      className="h-11 w-11 shrink-0 rounded-lg border flex items-center justify-center text-sm font-bold"
+                      style={{ borderColor: 'var(--color-border)' }}
+                    >
+                      {(companyLabel[0] ?? '').toUpperCase()}
+                    </div>
+                  )}
                   <div className="min-w-0 flex-1">
                     {isProfilePending ? (
                       <div className="text-sm opacity-80">Loading…</div>
@@ -797,29 +800,11 @@ export default function AppShell() {
                             {tierLabel}
                           </span>
                         </div>
-                        <div className="text-[11px] mt-1.5 opacity-60">
-                          Account settings →
-                        </div>
                       </>
                     )}
                   </div>
                 </div>
               </Link>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setIsMobileMenuOpen(false)
-                  void signOut()
-                }}
-                className="group cursor-pointer w-full rounded-md px-3 py-2.5 text-sm font-semibold border transition-colors duration-150 flex items-center justify-center gap-2 mt-auto border-[color:var(--color-border)] bg-transparent text-[color:var(--color-foreground)] hover:bg-red-600 hover:border-red-600 hover:text-white"
-              >
-                <LogOut
-                  size={18}
-                  className="shrink-0 text-[color:var(--color-foreground)] group-hover:text-white transition-colors"
-                />
-                <span className="group-hover:text-white">Sign out</span>
-              </button>
             </div>
           </div>
         </div>

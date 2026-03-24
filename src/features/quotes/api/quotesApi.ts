@@ -196,6 +196,25 @@ export async function listQuotesByLead(leadId: string) {
   }))
 }
 
+export type DashboardQuoteRow = Pick<
+  QuoteRow,
+  'id' | 'status' | 'won_at' | 'lost_at' | 'created_at' | 'updated_at'
+>
+
+export async function listQuotesForDashboard(): Promise<DashboardQuoteRow[]> {
+  if (!supabase) throw new Error('Supabase client not configured')
+  const ownerId = await getUserId()
+
+  const { data, error } = await supabase
+    .from('quotes')
+    .select(['id', 'status', 'won_at', 'lost_at', 'created_at', 'updated_at'].join(','))
+    .eq('owner_id', ownerId)
+    .order('created_at', { ascending: false })
+
+  if (error) throw error
+  return (data ?? []) as unknown as DashboardQuoteRow[]
+}
+
 export async function getQuoteById(quoteId: string) {
   if (!supabase) throw new Error('Supabase client not configured')
   const ownerId = await getUserId()

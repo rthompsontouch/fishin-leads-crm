@@ -16,10 +16,13 @@ export default function CustomerNoteComposer({
   customerId,
   onAdded,
   onError,
+  onCancel,
 }: {
   customerId: string
   onAdded: () => Promise<void>
   onError: (msg: string) => void
+  /** When set, shows Cancel (e.g. modal close). */
+  onCancel?: () => void
 }) {
   const [type, setType] = useState<NoteType>('note')
   const [title, setTitle] = useState('')
@@ -111,7 +114,24 @@ export default function CustomerNoteComposer({
         />
       </label>
 
-      <div className="flex justify-end">
+      <div
+        className="flex flex-wrap justify-end gap-2 border-t pt-3"
+        style={{ borderColor: 'var(--color-border)' }}
+      >
+        {onCancel ? (
+          <button
+            type="button"
+            className="rounded-md px-4 py-2 text-sm font-semibold border-2 bg-white cursor-pointer transition-colors duration-150 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{
+              color: 'var(--crm-content-header-text, var(--color-foreground))',
+              borderColor: 'hsl(215 22% 72%)',
+            }}
+            onClick={onCancel}
+            disabled={submitting}
+          >
+            Cancel
+          </button>
+        ) : null}
         <button
           type="submit"
           className="rounded-md px-4 py-2 text-sm font-semibold text-white cursor-pointer transition-colors duration-150 bg-[color:var(--color-primary)] hover:bg-[color:var(--color-primary-dark)] disabled:opacity-60 disabled:cursor-not-allowed"

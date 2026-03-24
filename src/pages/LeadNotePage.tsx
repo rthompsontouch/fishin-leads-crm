@@ -65,9 +65,9 @@ export default function LeadNotePage() {
         <div className="text-sm opacity-80">Note not found.</div>
       ) : (
         <>
-          <h1 className="text-2xl font-semibold text-gray-900">
-            {displayNoteTitle(note.title, note.body)}
-          </h1>
+          <div className="crm-page-header">
+            <h1 className="crm-page-header-title">{displayNoteTitle(note.title, note.body)}</h1>
+          </div>
           <div className="text-xs text-gray-700 opacity-80">
             {new Date(note.occurred_at).toLocaleString()} • {note.type}
           </div>

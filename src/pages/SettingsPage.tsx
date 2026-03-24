@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
-import { Link, useSearchParams } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import {
   changeMyEmail,
   changeMyPassword,
@@ -20,6 +20,20 @@ import FormFieldError from '../components/FormFieldError'
 import { formatErrorForUser, useAppMessages } from '../context/AppMessagesContext'
 import { ensureWebPushSubscribed } from '../lib/webPushSubscription'
 import { getHasMyPushSubscription } from '../features/notifications/api/notificationsApi'
+import { LogOut } from 'lucide-react'
+
+const settingsCardClass =
+  'rounded-xl bg-white p-6 sm:p-7 shadow-sm ring-1 ring-black/5'
+const settingsInsetClass =
+  'rounded-lg border-2 bg-slate-50 p-4 sm:p-5'
+const insetBorderStyle = { borderColor: 'hsl(215 22% 72%)' } as const
+const fieldLabelStyle = { color: 'var(--crm-content-header-text)' } as const
+const fieldInputClass =
+  'rounded-md border-2 px-3 py-2 outline-none bg-white w-full min-w-0 focus-visible:ring-2 focus-visible:ring-[color:var(--color-primary)] focus-visible:ring-offset-1'
+const fieldInputStyle = {
+  borderColor: 'hsl(215 22% 72%)',
+  color: 'var(--crm-content-header-text)',
+} as const
 
 const emptyToNull = (v: string | null | undefined) => {
   if (v === null || v === undefined) return null
@@ -39,6 +53,8 @@ const changePasswordSchema = z
   })
 
 export default function SettingsPage() {
+  const navigate = useNavigate()
+  const location = useLocation()
   const queryClient = useQueryClient()
   const { toastError, toastSuccess } = useAppMessages()
   const [logoBusy, setLogoBusy] = useState(false)
@@ -47,9 +63,16 @@ export default function SettingsPage() {
   const [pushTestResult, setPushTestResult] = useState<string | null>(null)
   const [reminderDispatchBusy, setReminderDispatchBusy] = useState(false)
   const [reminderDispatchResult, setReminderDispatchResult] = useState<string | null>(null)
-  const [searchParams] = useSearchParams()
-  const settingsSection = searchParams.get('section') === 'security' ? 'security' : 'account'
   const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined
+
+  useEffect(() => {
+    if (location.pathname !== '/settings') return
+    const id = location.hash.replace(/^#/, '')
+    if (!id) return
+    requestAnimationFrame(() => {
+      document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
+  }, [location.pathname, location.hash])
 
   const {
     data: profile,
@@ -232,67 +255,96 @@ export default function SettingsPage() {
     }
   }
 
+  async function handleSignOut() {
+    if (!supabase) throw new Error('Supabase client not configured')
+    await supabase.auth.signOut()
+    navigate('/login', { replace: true })
+  }
+
+  const sectionAnchorClass =
+    'font-semibold text-[color:var(--color-primary)] underline-offset-2 hover:underline'
+
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Settings</h1>
-        <p className="text-sm opacity-80 mt-1">
-          Update your account and login details.
-        </p>
+    <div className="crm-light-surface flex flex-col gap-6 max-md:pt-2 max-w-3xl w-full">
+      <div className="crm-page-header">
+        <h1 className="crm-page-header-title">Settings</h1>
+        <button
+          type="button"
+          onClick={() => void handleSignOut()}
+          className="inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold border-2 cursor-pointer transition-colors duration-150 bg-white hover:bg-red-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-danger)] focus-visible:ring-offset-2"
+          style={{
+            color: 'var(--color-danger)',
+            borderColor: 'color-mix(in srgb, var(--color-danger) 50%, hsl(215 22% 82%))',
+          }}
+        >
+          <LogOut size={18} className="shrink-0" strokeWidth={2.25} aria-hidden />
+          Sign out
+        </button>
       </div>
 
       {profileError ? (
-        <div className="rounded-xl border p-4" style={{ borderColor: 'var(--color-danger)' }}>
+        <div
+          className="rounded-xl border-2 px-4 py-3 text-sm bg-red-50/90"
+          style={{
+            borderColor: 'color-mix(in srgb, var(--color-danger) 35%, transparent)',
+            color: 'var(--color-danger)',
+          }}
+        >
           Failed to load profile: {String((profileError as Error).message)}
         </div>
       ) : null}
 
       <div className="grid grid-cols-1 gap-6">
-        {settingsSection === 'account' ? (
-        <div className="rounded-xl border p-6" style={{ borderColor: 'var(--color-border)' }}>
-          <div className="text-sm font-semibold mb-3">Account details</div>
-          <div className="text-xs opacity-70 mb-4">
-            Trying to change your email or password?{' '}
-            <Link to="/settings?section=security" className="font-semibold" style={{ color: 'var(--color-primary)' }}>
-              Go to Security
-            </Link>
-            .
-          </div>
-
+        <div id="settings-account" className={`${settingsCardClass} scroll-mt-6`}>
           <div
-            className="mb-5 rounded-lg border p-4"
-            style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface-1)' }}
+            className="text-lg font-semibold mb-1"
+            style={{ color: 'var(--crm-content-header-text)' }}
           >
-            <div className="text-xs font-semibold uppercase tracking-wide opacity-70 mb-2">
+            Account details
+          </div>
+          <p className="text-sm text-slate-600 mb-6">
+            Company profile and branding. For email, password, and notifications, see{' '}
+            <a href="#settings-security" className={sectionAnchorClass}>
+              Security
+            </a>{' '}
+            below.
+          </p>
+
+          <div className={`${settingsInsetClass} mb-6`} style={insetBorderStyle}>
+            <div
+              className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2"
+            >
               Company logo
             </div>
-            <p className="text-xs opacity-75 mb-3">
+            <p className="text-xs text-slate-600 mb-4 leading-relaxed">
               Shown in the sidebar next to your company name. PNG, JPG, WebP, SVG, or GIF — max ~2MB
               recommended.
             </p>
             <div className="flex flex-wrap items-end gap-4">
               <div
-                className="flex h-20 w-20 items-center justify-center rounded-lg border overflow-hidden shrink-0"
-                style={{ borderColor: 'var(--color-border)' }}
+                className="flex h-24 w-24 items-center justify-center rounded-lg border-2 overflow-hidden shrink-0 bg-white"
+                style={insetBorderStyle}
               >
                 {companyLogoPreview ? (
                   <img
                     src={companyLogoPreview}
                     alt="Company logo preview"
-                    className="max-h-full max-w-full object-contain"
+                    className="max-h-full max-w-full object-contain p-1"
                   />
                 ) : (
-                  <span className="text-[10px] opacity-50 text-center px-1">No logo</span>
+                  <span className="text-[10px] text-slate-400 text-center px-2 leading-tight">
+                    No logo
+                  </span>
                 )}
               </div>
-              <div className="flex flex-col gap-2 min-w-0">
-                <label className="text-sm">
+              <div className="flex flex-col gap-2 min-w-0 flex-1">
+                <label className="text-sm font-medium" style={fieldLabelStyle}>
                   <span className="sr-only">Upload company logo</span>
                   <input
                     type="file"
                     accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml,.svg"
                     disabled={logoBusy || isProfilePending}
-                    className="block w-full max-w-xs text-xs file:mr-2 file:rounded file:border file:px-2 file:py-1 file:text-xs"
+                    className="block w-full max-w-sm text-xs file:mr-2 file:rounded-md file:border-2 file:px-3 file:py-1.5 file:text-xs file:font-semibold file:border-[hsl(215_22%_72%)] file:bg-white file:text-slate-800 hover:file:bg-slate-50"
                     onChange={(e) => void handleLogoFileChange(e.target.files)}
                   />
                 </label>
@@ -300,7 +352,11 @@ export default function SettingsPage() {
                   <button
                     type="button"
                     disabled={logoBusy}
-                    className="self-start rounded-md border px-3 py-1.5 text-xs font-medium cursor-pointer transition-colors duration-150 border-[color:var(--color-border)] bg-transparent hover:bg-[color:var(--color-surface-2)] disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="self-start rounded-md border-2 px-3 py-1.5 text-xs font-semibold cursor-pointer transition-colors duration-150 bg-white hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{
+                      color: 'var(--color-danger)',
+                      borderColor: 'hsl(215 22% 72%)',
+                    }}
                     onClick={() => void handleRemoveLogo()}
                   >
                     Remove logo
@@ -311,10 +367,10 @@ export default function SettingsPage() {
           </div>
 
           {isProfilePending ? (
-            <div className="text-sm opacity-80">Loading...</div>
+            <div className="text-sm text-slate-600">Loading profile…</div>
           ) : (
             <form
-              className="grid grid-cols-1 gap-4"
+              className="grid grid-cols-1 gap-3 pt-2 border-t border-[hsl(215_20%_88%)]"
               onSubmit={accountForm.handleSubmit(async (v) => {
                 try {
                   await handleSaveAccount(v)
@@ -323,122 +379,107 @@ export default function SettingsPage() {
                 }
               })}
             >
-              <label className="flex flex-col gap-1 text-sm">
+              <label className="flex flex-col gap-1 text-sm font-medium" style={fieldLabelStyle}>
                 Company name
-                <input
-                  className="rounded-md border px-3 py-2 outline-none"
-                  style={{ borderColor: 'var(--color-border)' }}
-                  {...accountForm.register('company_name')}
-                />
+                <input className={fieldInputClass} style={fieldInputStyle} {...accountForm.register('company_name')} />
                 <FormFieldError message={accountForm.formState.errors.company_name?.message} />
               </label>
 
-              <label className="flex flex-col gap-1 text-sm">
+              <label className="flex flex-col gap-1 text-sm font-medium" style={fieldLabelStyle}>
                 Tier
                 <input
                   disabled
                   value={profile?.tier ?? 'Freemium'}
-                  className="rounded-md border px-3 py-2 outline-none opacity-80 disabled:cursor-not-allowed"
-                  style={{ borderColor: 'var(--color-border)' }}
+                  className={`${fieldInputClass} opacity-85 disabled:cursor-not-allowed bg-slate-50`}
+                  style={fieldInputStyle}
                 />
               </label>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <label className="flex flex-col gap-1 text-sm">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <label className="flex flex-col gap-1 text-sm font-medium" style={fieldLabelStyle}>
                   First name
-                  <input
-                    className="rounded-md border px-3 py-2 outline-none"
-                    style={{ borderColor: 'var(--color-border)' }}
-                    {...accountForm.register('first_name')}
-                  />
+                  <input className={fieldInputClass} style={fieldInputStyle} {...accountForm.register('first_name')} />
                 </label>
 
-                <label className="flex flex-col gap-1 text-sm">
+                <label className="flex flex-col gap-1 text-sm font-medium" style={fieldLabelStyle}>
                   Last name
-                  <input
-                    className="rounded-md border px-3 py-2 outline-none"
-                    style={{ borderColor: 'var(--color-border)' }}
-                    {...accountForm.register('last_name')}
-                  />
+                  <input className={fieldInputClass} style={fieldInputStyle} {...accountForm.register('last_name')} />
                 </label>
               </div>
 
-              <label className="flex flex-col gap-1 text-sm">
+              <label className="flex flex-col gap-1 text-sm font-medium" style={fieldLabelStyle}>
                 Phone
-                <input
-                  className="rounded-md border px-3 py-2 outline-none"
-                  style={{ borderColor: 'var(--color-border)' }}
-                  {...accountForm.register('phone')}
-                />
+                <input className={fieldInputClass} style={fieldInputStyle} {...accountForm.register('phone')} />
               </label>
 
-              <label className="flex flex-col gap-1 text-sm">
+              <label className="flex flex-col gap-1 text-sm font-medium" style={fieldLabelStyle}>
                 Industry
-                <input
-                  className="rounded-md border px-3 py-2 outline-none"
-                  style={{ borderColor: 'var(--color-border)' }}
-                  {...accountForm.register('industry')}
-                />
+                <input className={fieldInputClass} style={fieldInputStyle} {...accountForm.register('industry')} />
               </label>
 
-              <label className="flex flex-col gap-1 text-sm">
+              <label className="flex flex-col gap-1 text-sm font-medium" style={fieldLabelStyle}>
                 Company size
-                <input
-                  className="rounded-md border px-3 py-2 outline-none"
-                  style={{ borderColor: 'var(--color-border)' }}
-                  {...accountForm.register('company_size')}
-                />
+                <input className={fieldInputClass} style={fieldInputStyle} {...accountForm.register('company_size')} />
               </label>
 
-              <label className="flex flex-col gap-1 text-sm">
+              <label className="flex flex-col gap-1 text-sm font-medium" style={fieldLabelStyle}>
                 Website
-                <input
-                  className="rounded-md border px-3 py-2 outline-none"
-                  style={{ borderColor: 'var(--color-border)' }}
-                  {...accountForm.register('website')}
-                />
+                <input className={fieldInputClass} style={fieldInputStyle} {...accountForm.register('website')} />
               </label>
 
-              <div className="flex justify-end">
+              <div className="flex justify-end pt-1">
                 <button
                   type="submit"
-                  className="rounded-md px-4 py-2 text-sm font-semibold text-white cursor-pointer transition-colors duration-150 bg-[color:var(--color-primary)] hover:bg-[color:var(--color-primary-dark)] disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="rounded-md px-5 py-2.5 text-sm font-semibold text-white cursor-pointer transition-colors duration-150 bg-[color:var(--color-primary)] hover:bg-[color:var(--color-primary-dark)] disabled:opacity-60 disabled:cursor-not-allowed"
                   disabled={accountForm.formState.isSubmitting}
                 >
-                  {accountForm.formState.isSubmitting ? 'Saving...' : 'Save'}
+                  {accountForm.formState.isSubmitting ? 'Saving...' : 'Save changes'}
                 </button>
               </div>
             </form>
           )}
         </div>
-        ) : null}
 
-        {settingsSection === 'security' ? (
-        <div className="rounded-xl border p-6" style={{ borderColor: 'var(--color-border)' }}>
-          <div className="text-sm font-semibold mb-3">Security</div>
-          <div className="text-xs opacity-70 mb-4">
-            Need company/profile updates?{' '}
-            <Link to="/settings?section=account" className="font-semibold" style={{ color: 'var(--color-primary)' }}>
-              Go to Account Information
-            </Link>
-            .
+        <div id="settings-security" className={`${settingsCardClass} scroll-mt-6`}>
+          <div
+            className="text-lg font-semibold mb-1"
+            style={{ color: 'var(--crm-content-header-text)' }}
+          >
+            Security
+          </div>
+          <p className="text-sm text-slate-600 mb-6">
+            Email, password, and notifications. For company profile and branding, see{' '}
+            <a href="#settings-account" className={sectionAnchorClass}>
+              Account details
+            </a>{' '}
+            above.
+          </p>
+
+          <div
+            className="rounded-lg border-2 px-4 py-3 mb-6 bg-slate-50"
+            style={insetBorderStyle}
+          >
+            <div className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-1">
+              Signed in as
+            </div>
+            <div className="text-sm font-semibold tabular-nums" style={{ color: 'var(--crm-content-header-text)' }}>
+              {currentEmail ?? '—'}
+            </div>
           </div>
 
-          <div className="text-sm opacity-80 mb-4">
-            Current email: <span style={{ fontWeight: 700 }}>{currentEmail ?? '—'}</span>
-          </div>
-
-          <div className="rounded-lg border p-4 mb-6" style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface-1)' }}>
-            <div className="text-sm font-semibold">Notifications (Web Push)</div>
-            <div className="text-xs opacity-70 mt-1">
+          <div className={`${settingsInsetClass} mb-6`} style={insetBorderStyle}>
+            <div className="text-sm font-semibold" style={{ color: 'var(--crm-content-header-text)' }}>
+              Notifications (Web Push)
+            </div>
+            <p className="text-xs text-slate-600 mt-1 leading-relaxed">
               {vapidPublicKey
                 ? hasPushSubscription
-                  ? 'Enabled on at least one device. Tap enable on this device too to make sure it is registered.'
+                  ? 'Enabled on at least one device. Enable on this device too so it is registered here.'
                   : 'Enable to receive push notifications for new leads.'
                 : 'Set VITE_VAPID_PUBLIC_KEY in your env to enable web push.'}
-            </div>
+            </p>
 
-            <div className="mt-3 flex flex-wrap items-center gap-3">
+            <div className="mt-4 flex flex-wrap items-center gap-3">
               <button
                 type="button"
                 disabled={isPushSubscriptionPending || !vapidPublicKey}
@@ -455,9 +496,9 @@ export default function SettingsPage() {
                     toastError(msg)
                   }
                 }}
-                className="rounded-md px-3 py-2 text-sm font-semibold text-white cursor-pointer transition-colors duration-150 bg-[color:var(--color-primary)] hover:bg-[color:var(--color-primary-dark)] disabled:opacity-60 disabled:cursor-not-allowed"
+                className="rounded-md px-4 py-2 text-sm font-semibold text-white cursor-pointer transition-colors duration-150 bg-[color:var(--color-primary)] hover:bg-[color:var(--color-primary-dark)] disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                {isPushSubscriptionPending ? 'Enabling…' : 'Enable notifications on this device'}
+                {isPushSubscriptionPending ? 'Enabling…' : 'Enable on this device'}
               </button>
 
               <button
@@ -475,7 +516,6 @@ export default function SettingsPage() {
                     const userId = sessionData?.session?.user?.id
                     if (!userId) throw new Error('Not authenticated for test push.')
 
-                    // Use a real lead id because lead_push_events.lead_id has a foreign key to leads.id.
                     const { data: latestLead, error: latestLeadErr } = await supabase
                       .from('leads')
                       .select('id')
@@ -504,34 +544,46 @@ export default function SettingsPage() {
                     setPushTestBusy(false)
                   }
                 }}
-                className="rounded-md px-3 py-2 text-sm font-semibold border cursor-pointer transition-colors duration-150 border-[color:var(--color-border)] bg-transparent text-[color:var(--color-foreground)] hover:bg-[color:var(--color-surface-2)] disabled:opacity-60 disabled:cursor-not-allowed"
+                className="rounded-md px-4 py-2 text-sm font-semibold border-2 cursor-pointer transition-colors duration-150 bg-white hover:bg-slate-50 disabled:opacity-60 disabled:cursor-not-allowed"
+                style={{
+                  color: 'var(--crm-content-header-text)',
+                  borderColor: 'hsl(215 22% 72%)',
+                }}
               >
                 {pushTestBusy ? 'Sending…' : 'Send test notification'}
               </button>
             </div>
 
             {pushUiError ? (
-              <div className="mt-3 text-sm rounded-lg border p-3" style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface-2)', color: 'var(--color-danger)', whiteSpace: 'pre-wrap' }}>
+              <div
+                className="mt-4 text-sm rounded-lg border-2 p-3 bg-red-50/90 whitespace-pre-wrap"
+                style={{
+                  borderColor: 'color-mix(in srgb, var(--color-danger) 30%, transparent)',
+                  color: 'var(--color-danger)',
+                }}
+              >
                 {pushUiError}
               </div>
             ) : null}
 
             {pushTestResult ? (
               <div
-                className="mt-3 text-sm rounded-lg border p-3"
-                style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface-2)', color: 'var(--color-foreground)', whiteSpace: 'pre-wrap' }}
+                className="mt-4 text-sm rounded-lg border-2 p-3 bg-white whitespace-pre-wrap text-slate-800"
+                style={insetBorderStyle}
               >
                 {pushTestResult}
               </div>
             ) : null}
           </div>
 
-          <div className="rounded-lg border p-4 mb-6" style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface-1)' }}>
-            <div className="text-sm font-semibold">Service Reminder Dispatch</div>
-            <div className="text-xs opacity-70 mt-1">
-              Sends push notifications for due scheduled jobs where reminder time has passed.
+          <div className={`${settingsInsetClass} mb-8`} style={insetBorderStyle}>
+            <div className="text-sm font-semibold" style={{ color: 'var(--crm-content-header-text)' }}>
+              Service reminder dispatch
             </div>
-            <div className="mt-3">
+            <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+              Sends push notifications for due scheduled jobs where the reminder time has passed.
+            </p>
+            <div className="mt-4">
               <button
                 type="button"
                 disabled={reminderDispatchBusy || !vapidPublicKey}
@@ -554,15 +606,19 @@ export default function SettingsPage() {
                     setReminderDispatchBusy(false)
                   }
                 }}
-                className="rounded-md px-3 py-2 text-sm font-semibold border cursor-pointer transition-colors duration-150 border-[color:var(--color-border)] bg-transparent text-[color:var(--color-foreground)] hover:bg-[color:var(--color-surface-2)] disabled:opacity-60 disabled:cursor-not-allowed"
+                className="rounded-md px-4 py-2 text-sm font-semibold border-2 cursor-pointer transition-colors duration-150 bg-white hover:bg-slate-50 disabled:opacity-60 disabled:cursor-not-allowed"
+                style={{
+                  color: 'var(--crm-content-header-text)',
+                  borderColor: 'hsl(215 22% 72%)',
+                }}
               >
                 {reminderDispatchBusy ? 'Dispatching…' : 'Run reminder dispatch now'}
               </button>
             </div>
             {reminderDispatchResult ? (
               <div
-                className="mt-3 text-sm rounded-lg border p-3"
-                style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface-2)', color: 'var(--color-foreground)', whiteSpace: 'pre-wrap' }}
+                className="mt-4 text-sm rounded-lg border-2 p-3 bg-white whitespace-pre-wrap text-slate-800 font-mono text-xs"
+                style={insetBorderStyle}
               >
                 {reminderDispatchResult}
               </div>
@@ -570,7 +626,7 @@ export default function SettingsPage() {
           </div>
 
           <form
-            className="grid grid-cols-1 gap-4 mb-8"
+            className="grid grid-cols-1 gap-3 mb-10 pt-2 border-t border-[hsl(215_20%_88%)]"
             onSubmit={emailForm.handleSubmit(async (v) => {
               try {
                 await handleChangeEmail(v)
@@ -579,25 +635,23 @@ export default function SettingsPage() {
               }
             })}
           >
-            <div className="text-sm font-semibold">Change email</div>
+            <div className="text-base font-semibold" style={{ color: 'var(--crm-content-header-text)' }}>
+              Change email
+            </div>
 
-            <label className="flex flex-col gap-1 text-sm">
+            <label className="flex flex-col gap-1 text-sm font-medium" style={fieldLabelStyle}>
               New email
-              <input
-                className="rounded-md border px-3 py-2 outline-none"
-                style={{ borderColor: 'var(--color-border)' }}
-                {...emailForm.register('new_email')}
-              />
+              <input className={fieldInputClass} style={fieldInputStyle} {...emailForm.register('new_email')} />
               <FormFieldError message={emailForm.formState.errors.new_email?.message} />
             </label>
 
-            <label className="flex flex-col gap-1 text-sm">
+            <label className="flex flex-col gap-1 text-sm font-medium" style={fieldLabelStyle}>
               Current password
               <input
                 type="password"
                 autoComplete="current-password"
-                className="rounded-md border px-3 py-2 outline-none"
-                style={{ borderColor: 'var(--color-border)' }}
+                className={fieldInputClass}
+                style={fieldInputStyle}
                 {...emailForm.register('current_password_for_email')}
               />
               <FormFieldError message={emailForm.formState.errors.current_password_for_email?.message} />
@@ -606,7 +660,7 @@ export default function SettingsPage() {
             <div className="flex justify-end">
               <button
                 type="submit"
-                className="rounded-md px-4 py-2 text-sm font-semibold text-white cursor-pointer transition-colors duration-150 bg-[color:var(--color-primary)] hover:bg-[color:var(--color-primary-dark)] disabled:opacity-60 disabled:cursor-not-allowed"
+                className="rounded-md px-5 py-2.5 text-sm font-semibold text-white cursor-pointer transition-colors duration-150 bg-[color:var(--color-primary)] hover:bg-[color:var(--color-primary-dark)] disabled:opacity-60 disabled:cursor-not-allowed"
                 disabled={emailForm.formState.isSubmitting}
               >
                 {emailForm.formState.isSubmitting ? 'Updating...' : 'Update email'}
@@ -615,7 +669,7 @@ export default function SettingsPage() {
           </form>
 
           <form
-            className="grid grid-cols-1 gap-4"
+            className="grid grid-cols-1 gap-3 pt-2 border-t border-[hsl(215_20%_88%)]"
             onSubmit={passwordForm.handleSubmit(async (v) => {
               try {
                 await handleChangePassword(v)
@@ -624,7 +678,9 @@ export default function SettingsPage() {
               }
             })}
           >
-            <div className="text-sm font-semibold">Change password</div>
+            <div className="text-base font-semibold" style={{ color: 'var(--crm-content-header-text)' }}>
+              Change password
+            </div>
 
             <PasswordChangeFields
               register={passwordForm.register}
@@ -636,10 +692,10 @@ export default function SettingsPage() {
               disabled={passwordForm.formState.isSubmitting}
             />
 
-            <div className="flex justify-end pt-2">
+            <div className="flex justify-end pt-1">
               <button
                 type="submit"
-                className="rounded-md px-4 py-2 text-sm font-semibold text-white cursor-pointer transition-colors duration-150 bg-[color:var(--color-primary)] hover:bg-[color:var(--color-primary-dark)] disabled:opacity-60 disabled:cursor-not-allowed"
+                className="rounded-md px-5 py-2.5 text-sm font-semibold text-white cursor-pointer transition-colors duration-150 bg-[color:var(--color-primary)] hover:bg-[color:var(--color-primary-dark)] disabled:opacity-60 disabled:cursor-not-allowed"
                 disabled={passwordForm.formState.isSubmitting}
               >
                 {passwordForm.formState.isSubmitting ? 'Updating...' : 'Update password'}
@@ -647,7 +703,6 @@ export default function SettingsPage() {
             </div>
           </form>
         </div>
-        ) : null}
       </div>
     </div>
   )

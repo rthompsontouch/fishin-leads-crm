@@ -111,28 +111,121 @@ async function getUserId() {
   return userId
 }
 
+/** Columns returned by list views / exports (dashboard metrics use `listCustomers`). */
+const CUSTOMER_LIST_SELECT = [
+  'id',
+  'name',
+  'primary_first_name',
+  'primary_last_name',
+  'primary_title',
+  'primary_email',
+  'primary_phone',
+  'industry',
+  'company_size',
+  'website',
+  'status',
+  'created_at',
+].join(',')
+
+function normalizeCustomerSearchTerm(raw: string): string {
+  return raw
+    .trim()
+    .replace(/[,()]/g, ' ')
+    .replace(/[%_\\]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function applyCustomerSearchFilters<T extends { or: (...a: unknown[]) => T }>(
+  query: T,
+  search?: string,
+): T {
+  let q = query
+  const term = normalizeCustomerSearchTerm(search ?? '')
+  if (term) {
+    const p = `%${term}%`
+    q = q.or(
+      `name.ilike.${p},primary_first_name.ilike.${p},primary_last_name.ilike.${p},primary_email.ilike.${p},primary_phone.ilike.${p},email.ilike.${p},phone.ilike.${p},industry.ilike.${p},status.ilike.${p}`,
+    ) as T
+  }
+  return q
+}
+
+export type ListCustomersPagedParams = {
+  page: number
+  pageSize: number
+  search?: string
+}
+
+export type ListCustomersPagedResult = {
+  rows: CustomerRow[]
+  total: number
+}
+
+export async function listCustomersPaged(
+  params: ListCustomersPagedParams,
+): Promise<ListCustomersPagedResult> {
+  if (!supabase) throw new Error('Supabase client not configured')
+  const ownerId = await getUserId()
+
+  const page = Math.max(1, Math.floor(params.page))
+  const pageSize = Math.max(1, Math.min(100, Math.floor(params.pageSize)))
+  const from = (page - 1) * pageSize
+  const to = from + pageSize - 1
+  const search = params.search
+
+  let countQuery = supabase
+    .from('customers')
+    .select('id', { count: 'exact', head: true })
+    .eq('owner_id', ownerId)
+  countQuery = applyCustomerSearchFilters(countQuery, search)
+
+  const { count, error: countError } = await countQuery
+  if (countError) throw countError
+  const total = count ?? 0
+
+  let dataQuery = supabase
+    .from('customers')
+    .select(CUSTOMER_LIST_SELECT)
+    .eq('owner_id', ownerId)
+    .order('created_at', { ascending: false })
+  dataQuery = applyCustomerSearchFilters(dataQuery, search)
+  dataQuery = dataQuery.range(from, to)
+
+  const { data, error: dataError } = await dataQuery.returns<CustomerRow[]>()
+
+  if (dataError) throw dataError
+
+  return { rows: data ?? [], total }
+}
+
+/** All customers matching search (for CSV export). */
+export async function listCustomersForExport(params?: { search?: string }): Promise<CustomerRow[]> {
+  if (!supabase) throw new Error('Supabase client not configured')
+  const ownerId = await getUserId()
+  const search = params?.search
+
+  let query = supabase
+    .from('customers')
+    .select(CUSTOMER_LIST_SELECT)
+    .eq('owner_id', ownerId)
+    .order('created_at', { ascending: false })
+
+  query = applyCustomerSearchFilters(query, search)
+
+  const { data, error } = await query.returns<CustomerRow[]>()
+
+  if (error) throw error
+  return data ?? []
+}
+
 export async function listCustomers() {
   if (!supabase) throw new Error('Supabase client not configured')
   const ownerId = await getUserId()
 
   const { data, error } = await supabase
     .from('customers')
-    .select(
-      [
-        'id',
-        'name',
-        'primary_first_name',
-        'primary_last_name',
-        'primary_title',
-        'primary_email',
-        'primary_phone',
-        'industry',
-        'company_size',
-        'website',
-        'status',
-        'created_at',
-      ].join(','),
-    )
+    .select(CUSTOMER_LIST_SELECT)
     .eq('owner_id', ownerId)
     .order('created_at', { ascending: false })
     .returns<CustomerRow[]>()
@@ -472,18 +565,51 @@ export async function listServiceEntries(customerId: string) {
   })) as ServiceEntryWithAttachments[]
 }
 
-export async function listCustomerActivityEvents(customerId: string, limit = 100) {
+export type DashboardServiceEntryRow = Pick<ServiceEntryRow, 'id' | 'created_at'>
+
+export async function listServiceEntriesForOwner(): Promise<DashboardServiceEntryRow[]> {
   if (!supabase) throw new Error('Supabase client not configured')
+  const ownerId = await getUserId()
 
   const { data, error } = await supabase
-    .from('customer_activity_events')
-    .select('id,owner_id,customer_id,activity_type,summary,target_path,metadata,created_at')
-    .eq('customer_id', customerId)
+    .from('service_entries')
+    .select(['id', 'created_at'].join(','))
+    .eq('owner_id', ownerId)
     .order('created_at', { ascending: false })
-    .limit(limit)
 
   if (error) throw error
-  return (data ?? []) as unknown as CustomerActivityEventRow[]
+  return (data ?? []) as unknown as DashboardServiceEntryRow[]
+}
+
+export type ListCustomerActivityEventsResult = {
+  events: CustomerActivityEventRow[]
+  /** Total rows for this customer (for pagination). */
+  total: number
+}
+
+export async function listCustomerActivityEvents(
+  customerId: string,
+  options?: { limit?: number; offset?: number },
+): Promise<ListCustomerActivityEventsResult> {
+  if (!supabase) throw new Error('Supabase client not configured')
+
+  const limit = Math.min(Math.max(options?.limit ?? 100, 1), 200)
+  const offset = Math.max(options?.offset ?? 0, 0)
+
+  const { data, error, count } = await supabase
+    .from('customer_activity_events')
+    .select('id,owner_id,customer_id,activity_type,summary,target_path,metadata,created_at', {
+      count: 'exact',
+    })
+    .eq('customer_id', customerId)
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1)
+
+  if (error) throw error
+  return {
+    events: (data ?? []) as unknown as CustomerActivityEventRow[],
+    total: count ?? 0,
+  }
 }
 
 function sanitizeFileName(name: string) {

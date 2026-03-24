@@ -1,5 +1,5 @@
 const btnOutline =
-  'cursor-pointer rounded-md px-3 py-1.5 text-xs font-semibold border transition-colors duration-150 border-[color:var(--color-border)] bg-transparent text-[color:var(--color-foreground)] hover:bg-[color:var(--color-surface-2)] disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent'
+  'cursor-pointer rounded-md px-3 py-1.5 text-xs font-semibold border-2 transition-colors duration-150 border-[hsl(215_22%_72%)] bg-white text-[color:var(--crm-content-header-text)] hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white'
 
 export const DEFAULT_PAGE_SIZE = 15
 
@@ -25,8 +25,12 @@ export default function TablePagination({
   const to = Math.min(safePage * pageSize, total)
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-t text-xs opacity-90"
-      style={{ borderColor: 'var(--color-border)' }}
+    <div
+      className="flex flex-wrap items-center justify-between gap-3 px-4 py-2 border-t text-xs"
+      style={{
+        borderColor: 'hsl(215 20% 88%)',
+        color: 'var(--crm-content-header-text)',
+      }}
     >
       <span>
         Showing {from}–{to} of {total}
@@ -40,7 +44,7 @@ export default function TablePagination({
         >
           Previous
         </button>
-        <span className="tabular-nums opacity-80">
+        <span className="tabular-nums text-slate-600">
           Page {safePage} / {totalPages}
         </span>
         <button

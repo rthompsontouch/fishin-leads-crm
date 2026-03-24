@@ -1,4 +1,7 @@
 import { useMemo, useState } from 'react'
+import { ChevronRight, Pencil, StickyNote, Trash2 } from 'lucide-react'
+import ConfirmDialog from '../components/ConfirmDialog'
+import ModalScrollBackdrop from '../components/ModalScrollBackdrop'
 import NoteSummaryCard from '../components/NoteSummaryCard'
 import NotesDatabaseSetupHint from '../components/NotesDatabaseSetupHint'
 import {
@@ -89,6 +92,13 @@ export default function LeadDetailsPage() {
   const [saving, setSaving] = useState(false)
   const [createQuoteOpen, setCreateQuoteOpen] = useState(false)
   const [acceptQuote, setAcceptQuote] = useState<QuoteWithDetails | null>(null)
+  const [confirmDeleteLead, setConfirmDeleteLead] = useState(false)
+  const [confirmConvertLead, setConfirmConvertLead] = useState(false)
+  const [leadNoteToDelete, setLeadNoteToDelete] = useState<string | null>(null)
+  const [leadOverviewExpanded, setLeadOverviewExpanded] = useState(false)
+  const [quotesExpanded, setQuotesExpanded] = useState(false)
+  const [notesExpanded, setNotesExpanded] = useState(false)
+  const [addNoteModalOpen, setAddNoteModalOpen] = useState(false)
 
   const filteredNotes = useMemo(() => {
     if (!notes) return []
@@ -107,90 +117,43 @@ export default function LeadDetailsPage() {
         : '—'
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between gap-4">
+    <div className="crm-light-surface flex flex-col gap-4 max-md:pt-2">
+      <div className="crm-page-header crm-page-header--white crm-page-header--compact">
         <div>
-          <div className="text-xs opacity-70">
-            <Link to="/leads">Leads</Link>
-            <span className="opacity-60"> / </span>
-            <span className="opacity-95">
-              {isLeadPending ? 'Loading...' : name || 'Lead'}
-            </span>
-          </div>
-          <h1 className="text-2xl font-semibold mt-1">
+          <h1 className="crm-page-header-title">
             {isLeadPending ? 'Loading...' : name || '—'}
           </h1>
-          <div className="text-sm opacity-80 mt-2">{lastContactedLabel}</div>
-          {lead && !isLeadPending ? (
-            <div className="mt-3">
-              <ContactActionButtons
-                phone={lead.phone}
-                email={lead.email}
-                contactLabel={name || undefined}
-              />
-            </div>
-          ) : null}
+          <div
+            className="text-sm mt-1"
+            style={{ color: 'var(--crm-content-header-text)', opacity: 0.88 }}
+          >
+            {lastContactedLabel}
+          </div>
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
-            className="rounded-md px-3 py-2 text-sm font-semibold border cursor-pointer transition-colors duration-150 border-[color:var(--color-border)] bg-transparent text-[color:var(--color-foreground)] hover:bg-[color:var(--color-surface-2)] disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center justify-center gap-2 rounded-sm px-3 py-2 text-sm font-semibold cursor-pointer transition-colors duration-150 border border-slate-400/80 bg-white text-[color:var(--crm-content-header-text)] hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
             onClick={() => setIsEditing((v) => !v)}
             disabled={!lead || isLeadPending}
           >
+            <Pencil size={18} className="shrink-0 opacity-90" strokeWidth={2.5} aria-hidden />
             Edit
           </button>
           <button
             type="button"
-            className="rounded-md px-3 py-2 text-sm font-semibold border cursor-pointer transition-colors duration-150 border-[color:var(--color-border)] bg-transparent text-[color:var(--color-foreground)] hover:bg-[color:var(--color-surface-2)] disabled:opacity-50 disabled:cursor-not-allowed"
-            onClick={async () => {
-              if (!lead) return
-              const ok = window.confirm(
-                `Delete this lead for ${name || 'this lead'}? This cannot be undone.`,
-              )
-              if (!ok) return
-              setSaving(true)
-              try {
-                await deleteLead(lead.id)
-                await queryClient.invalidateQueries({
-                  queryKey: ['leads'],
-                  exact: false,
-                })
-                navigate('/leads')
-              } catch (e) {
-                alert(String((e as Error).message ?? e))
-              } finally {
-                setSaving(false)
-              }
-            }}
+            className="inline-flex items-center justify-center gap-2 rounded-sm px-3 py-2 text-sm font-semibold cursor-pointer transition-colors duration-150 border border-red-600 bg-red-600 text-white hover:bg-red-700 hover:border-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={() => setConfirmDeleteLead(true)}
             disabled={!lead || isLeadPending || saving}
           >
+            <Trash2 size={18} className="shrink-0 opacity-95" strokeWidth={2.5} aria-hidden />
             Delete
           </button>
           <button
             type="button"
-            className="rounded-md px-3 py-2 text-sm font-semibold text-white cursor-pointer transition-colors duration-150 bg-[color:var(--color-primary)] hover:bg-[color:var(--color-primary-dark)] disabled:opacity-60 disabled:cursor-not-allowed"
-            onClick={async () => {
-              if (!lead) return
-              const ok = window.confirm(
-                'Convert this lead into a customer? A customer will be created, your latest lead notes (up to 4) will carry over, and this lead will be linked to the customer.',
-              )
-              if (!ok) return
-              setSaving(true)
-              try {
-                const customer = await convertLeadToCustomer(lead.id)
-                await Promise.all([
-                  queryClient.invalidateQueries({ queryKey: ['customers'] }),
-                  queryClient.invalidateQueries({ queryKey: ['leads'] }),
-                ])
-                navigate(`/customers/${customer.id}`)
-              } catch (e) {
-                alert(String((e as Error).message ?? e))
-              } finally {
-                setSaving(false)
-              }
-            }}
+            className="rounded-sm px-3 py-2 text-sm font-semibold text-white cursor-pointer transition-colors duration-150 bg-[color:var(--color-primary)] hover:bg-[color:var(--color-primary-dark)] disabled:opacity-60 disabled:cursor-not-allowed"
+            onClick={() => setConfirmConvertLead(true)}
             disabled={!lead || isLeadPending || saving}
           >
             Convert to Customer
@@ -198,23 +161,79 @@ export default function LeadDetailsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div
-          className="lg:col-span-2 rounded-xl border overflow-hidden"
-          style={{ borderColor: 'var(--color-border)' }}
+      <div
+        className="text-xs font-medium"
+        style={{ color: 'var(--crm-content-header-text)', opacity: 0.8 }}
+      >
+        <Link
+          to="/leads"
+          className="font-semibold underline-offset-2 hover:underline"
+          style={{ color: 'var(--color-primary)' }}
         >
+          Leads
+        </Link>
+        <span className="opacity-50"> / </span>
+        <span>{isLeadPending ? 'Loading...' : name || 'Lead'}</span>
+      </div>
+
+      {noteError ? (
+        <div
+          className="rounded-xl border-2 px-4 py-3 text-sm bg-red-50/80"
+          style={{
+            borderColor: 'color-mix(in srgb, var(--color-danger) 35%, transparent)',
+            color: 'var(--color-danger)',
+          }}
+        >
+          {noteError}
+        </div>
+      ) : null}
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-2 rounded-xl bg-white shadow-sm ring-1 ring-black/5 overflow-hidden">
           <div
-            className="px-4 sm:px-5 py-3.5 border-b"
-            style={{
-              borderColor: 'var(--color-border)',
-              background: 'var(--color-surface-1)',
-            }}
+            className="px-4 sm:px-5 py-3 border-b bg-slate-100 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3"
+            style={{ borderColor: 'hsl(215 20% 88%)' }}
           >
-            <h2 className="text-sm font-semibold">Lead overview</h2>
-            <p className="text-xs opacity-65 mt-0.5">Contact, pipeline, and company details</p>
+            <button
+              type="button"
+              className="flex min-w-0 flex-1 items-start gap-2 rounded-sm text-left transition-colors hover:bg-slate-200/60 -m-1 p-1 sm:items-center"
+              onClick={() => setLeadOverviewExpanded((v) => !v)}
+              aria-expanded={leadOverviewExpanded}
+              aria-controls="lead-overview-panel"
+              id="lead-overview-toggle"
+            >
+              <ChevronRight
+                size={20}
+                className={`mt-0.5 shrink-0 text-slate-600 transition-transform duration-200 sm:mt-0 ${leadOverviewExpanded ? 'rotate-90' : ''}`}
+                strokeWidth={2.25}
+                aria-hidden
+              />
+              <span className="min-w-0">
+                <span
+                  className="text-sm font-semibold block m-0"
+                  style={{ color: 'var(--crm-content-header-text)' }}
+                >
+                  Lead overview
+                </span>
+                <span className="text-xs text-slate-600 block m-0 mt-0.5">
+                  Contact, pipeline, and company details
+                </span>
+              </span>
+            </button>
+            {lead && !isLeadPending ? (
+              <div className="shrink-0 sm:ml-auto" onClick={(e) => e.stopPropagation()}>
+                <ContactActionButtons
+                  phone={lead.phone}
+                  email={lead.email}
+                  contactLabel={name || undefined}
+                  className="sm:justify-end"
+                />
+              </div>
+            ) : null}
           </div>
 
-          <div className="p-4 sm:p-5">
+          {leadOverviewExpanded ? (
+            <div id="lead-overview-panel" className="p-4 sm:p-5" role="region" aria-labelledby="lead-overview-toggle">
             {!isValidUuid ? (
               <div className="text-sm opacity-80">Invalid lead id.</div>
             ) : leadError ? (
@@ -350,241 +369,411 @@ export default function LeadDetailsPage() {
                     />
                   </div>
                 )}
-
-                {lead && !isLeadPending ? (
-                  <div
-                    className="rounded-xl border p-5"
-                    style={{ borderColor: 'var(--color-border)' }}
-                  >
-                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-3">
-                      <div className="text-sm font-semibold">Quotes</div>
-                      <button
-                        type="button"
-                        className="rounded-md px-3 py-2 text-sm font-semibold text-white cursor-pointer transition-colors duration-150 bg-[color:var(--color-primary)] hover:bg-[color:var(--color-primary-dark)] disabled:opacity-60 disabled:cursor-not-allowed"
-                        onClick={() => setCreateQuoteOpen(true)}
-                        disabled={isQuotesPending}
-                      >
-                        Create Quote
-                      </button>
-                    </div>
-
-                    {quotesError ? (
-                      <div className="text-sm" style={{ color: 'var(--color-danger)' }}>
-                        Failed to load quotes: {String((quotesError as Error).message)}
-                      </div>
-                    ) : isQuotesPending ? (
-                      <div className="text-sm opacity-80">Loading quotes…</div>
-                    ) : quotes && quotes.length > 0 ? (
-                      <div className="flex flex-col gap-3">
-                        {quotes.map((q) => {
-                          const quoteTone =
-                            q.status === 'Won'
-                              ? 'success'
-                              : q.status === 'Lost'
-                                ? 'danger'
-                                : q.status === 'Sent'
-                                  ? 'info'
-                                  : 'neutral'
-
-                          return (
-                            <div
-                              key={q.id}
-                              className="rounded-lg border p-4"
-                              style={{ borderColor: 'var(--color-border)' }}
-                            >
-                              <div className="flex flex-col gap-2">
-                                <div className="flex items-center justify-between gap-4">
-                                  <div>
-                                    <div className="text-xs opacity-70">Quote</div>
-                                    <div className="text-sm font-semibold mt-0.5">
-                                      {q.price_currency} {q.price_amount}
-                                    </div>
-                                  </div>
-                                  <OverviewPill tone={quoteTone as any}>{q.status}</OverviewPill>
-                                </div>
-
-                                <div className="text-sm opacity-85">
-                                  {q.description?.trim() ? q.description : <span className="opacity-50">No description</span>}
-                                </div>
-
-                                <div className="text-xs opacity-70">
-                                  {q.line_items.length > 0 ? `${q.line_items.length} line item(s)` : 'No line items'} •{' '}
-                                  {q.attachments.length > 0 ? `${q.attachments.length} photo(s)` : 'No photos'}
-                                </div>
-
-                                <div className="flex flex-wrap gap-2 pt-1">
-                                  {q.status === 'Draft' ? (
-                                    <button
-                                      type="button"
-                                      className="rounded-md px-3 py-2 text-sm font-semibold text-white cursor-pointer transition-colors duration-150 bg-[color:var(--color-primary)] hover:bg-[color:var(--color-primary-dark)] disabled:opacity-60 disabled:cursor-not-allowed"
-                                      onClick={async () => {
-                                        try {
-                                          await sendQuote(q.id)
-                                          await queryClient.invalidateQueries({ queryKey: ['quotes', safeLeadId], exact: false })
-                                        } catch (e) {
-                                          alert(String((e as Error).message ?? e))
-                                        }
-                                      }}
-                                    >
-                                      Send Quote
-                                    </button>
-                                  ) : null}
-
-                                  {q.status === 'Sent' ? (
-                                    <button
-                                      type="button"
-                                      className="rounded-md px-3 py-2 text-sm font-semibold text-white cursor-pointer transition-colors duration-150 bg-[color:var(--color-primary)] hover:bg-[color:var(--color-primary-dark)] disabled:opacity-60 disabled:cursor-not-allowed"
-                                      onClick={() => setAcceptQuote(q)}
-                                    >
-                                      Customer accepted → Won & Create Job
-                                    </button>
-                                  ) : null}
-
-                                  {q.status === 'Won' ? (
-                                    <div className="text-sm opacity-80 font-semibold">Job created</div>
-                                  ) : null}
-                                </div>
-                              </div>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    ) : (
-                      <div className="text-sm opacity-80">No quotes yet. Create one to start the pipeline.</div>
-                    )}
-                  </div>
-                ) : null}
-
-                {lead ? (
-                  <CreateQuoteModal
-                    open={createQuoteOpen}
-                    lead={lead as any}
-                    onClose={() => setCreateQuoteOpen(false)}
-                    onCreated={async () => {
-                      await queryClient.invalidateQueries({ queryKey: ['quotes', safeLeadId], exact: false })
-                      await queryClient.invalidateQueries({ queryKey: ['lead', safeLeadId], exact: false })
-                    }}
-                  />
-                ) : null}
-
-                {acceptQuote && lead ? (
-                  <AcceptQuoteJobModal
-                    open={true}
-                    lead={lead}
-                    quote={acceptQuote}
-                    onClose={() => setAcceptQuote(null)}
-                    onAccepted={async () => {
-                      await queryClient.invalidateQueries({ queryKey: ['quotes', safeLeadId], exact: false })
-                      await queryClient.invalidateQueries({ queryKey: ['lead', safeLeadId], exact: false })
-                    }}
-                  />
-                ) : null}
-
-                {noteError ? (
-                  <div className="text-sm mt-4 pt-4 border-t" style={{ color: 'var(--color-danger)', borderColor: 'var(--color-border)' }}>
-                    {noteError}
-                  </div>
-                ) : null}
               </>
             ) : (
               <div className="text-sm opacity-80">Lead not found.</div>
             )}
+            </div>
+          ) : null}
+
+          <div className="border-t" style={{ borderColor: 'hsl(215 20% 88%)' }}>
+            <div
+              className="px-4 sm:px-5 py-3 border-b bg-slate-100 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3"
+              style={{ borderColor: 'hsl(215 20% 88%)' }}
+            >
+              <button
+                type="button"
+                className="flex min-w-0 flex-1 items-start gap-2 rounded-sm text-left transition-colors hover:bg-slate-200/60 -m-1 p-1 sm:items-center"
+                onClick={() => setQuotesExpanded((v) => !v)}
+                aria-expanded={quotesExpanded}
+                aria-controls="lead-quotes-panel"
+                id="lead-quotes-toggle"
+              >
+                <ChevronRight
+                  size={20}
+                  className={`mt-0.5 shrink-0 text-slate-600 transition-transform duration-200 sm:mt-0 ${quotesExpanded ? 'rotate-90' : ''}`}
+                  strokeWidth={2.25}
+                  aria-hidden
+                />
+                <span className="min-w-0">
+                  <span
+                    className="text-sm font-semibold block m-0"
+                    style={{ color: 'var(--crm-content-header-text)' }}
+                  >
+                    Quotes
+                  </span>
+                  <span className="text-xs text-slate-600 block m-0 mt-0.5">
+                    Pricing, send, and accept to create a job
+                  </span>
+                </span>
+              </button>
+              {lead && !isLeadPending ? (
+                <button
+                  type="button"
+                  className="inline-flex shrink-0 w-full sm:w-auto items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-semibold text-white cursor-pointer transition-colors duration-150 bg-[color:var(--color-primary)] hover:bg-[color:var(--color-primary-dark)] disabled:opacity-60 disabled:cursor-not-allowed"
+                  onClick={() => setCreateQuoteOpen(true)}
+                  disabled={isQuotesPending}
+                >
+                  Create Quote
+                </button>
+              ) : null}
+            </div>
+
+            {quotesExpanded ? (
+              <div id="lead-quotes-panel" className="p-4 sm:p-5" role="region" aria-labelledby="lead-quotes-toggle">
+                {isLeadPending ? (
+                  <div className="text-sm text-slate-600">Loading lead…</div>
+                ) : !lead ? (
+                  <div className="text-sm text-slate-600">Lead details unavailable.</div>
+                ) : quotesError ? (
+                  <div className="text-sm" style={{ color: 'var(--color-danger)' }}>
+                    Failed to load quotes: {String((quotesError as Error).message)}
+                  </div>
+                ) : isQuotesPending ? (
+                  <div className="text-sm opacity-80">Loading quotes…</div>
+                ) : quotes && quotes.length > 0 ? (
+                  <div className="flex flex-col gap-3">
+                    {quotes.map((q) => {
+                      const quoteTone =
+                        q.status === 'Won'
+                          ? 'success'
+                          : q.status === 'Lost'
+                            ? 'danger'
+                            : q.status === 'Sent'
+                              ? 'info'
+                              : 'neutral'
+
+                      return (
+                        <div
+                          key={q.id}
+                          className="rounded-lg border p-4"
+                          style={{ borderColor: 'var(--color-border)' }}
+                        >
+                          <div className="flex flex-col gap-2">
+                            <div className="flex items-center justify-between gap-4">
+                              <div>
+                                <div className="text-xs opacity-70">Quote</div>
+                                <div className="text-sm font-semibold mt-0.5">
+                                  {q.price_currency} {q.price_amount}
+                                </div>
+                              </div>
+                              <OverviewPill tone={quoteTone as any}>{q.status}</OverviewPill>
+                            </div>
+
+                            <div className="text-sm opacity-85">
+                              {q.description?.trim() ? q.description : <span className="opacity-50">No description</span>}
+                            </div>
+
+                            <div className="text-xs opacity-70">
+                              {q.line_items.length > 0 ? `${q.line_items.length} line item(s)` : 'No line items'} •{' '}
+                              {q.attachments.length > 0 ? `${q.attachments.length} photo(s)` : 'No photos'}
+                            </div>
+
+                            <div className="flex flex-wrap gap-2 pt-1">
+                              {q.status === 'Draft' ? (
+                                <button
+                                  type="button"
+                                  className="rounded-md px-3 py-2 text-sm font-semibold text-white cursor-pointer transition-colors duration-150 bg-[color:var(--color-primary)] hover:bg-[color:var(--color-primary-dark)] disabled:opacity-60 disabled:cursor-not-allowed"
+                                  onClick={async () => {
+                                    try {
+                                      await sendQuote(q.id)
+                                      await queryClient.invalidateQueries({ queryKey: ['quotes', safeLeadId], exact: false })
+                                    } catch (e) {
+                                      alert(String((e as Error).message ?? e))
+                                    }
+                                  }}
+                                >
+                                  Send Quote
+                                </button>
+                              ) : null}
+
+                              {q.status === 'Sent' ? (
+                                <button
+                                  type="button"
+                                  className="rounded-md px-3 py-2 text-sm font-semibold text-white cursor-pointer transition-colors duration-150 bg-[color:var(--color-primary)] hover:bg-[color:var(--color-primary-dark)] disabled:opacity-60 disabled:cursor-not-allowed"
+                                  onClick={() => setAcceptQuote(q)}
+                                >
+                                  Customer accepted → Won & Create Job
+                                </button>
+                              ) : null}
+
+                              {q.status === 'Won' ? (
+                                <div className="text-sm opacity-80 font-semibold">Job created</div>
+                              ) : null}
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-sm text-slate-600">No quotes yet. Create one to start the pipeline.</div>
+                )}
+              </div>
+            ) : null}
           </div>
         </div>
 
-        <div className="rounded-xl border p-5" style={{ borderColor: 'var(--color-border)' }}>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-3">
-            <div className="text-sm font-semibold">Lead notes</div>
-            <div className="text-xs opacity-70">
-              {notes?.length != null ? <span className="tabular-nums">{notes.length} notes</span> : '—'}
-              {notes && notes.length > 0 && noteSearch.trim() ? (
-                <span className="ml-2">• showing {filteredNotes.length}</span>
-              ) : null}
-            </div>
+        <div className="rounded-xl bg-white shadow-sm ring-1 ring-black/5 overflow-hidden flex flex-col min-h-0">
+          <div
+            className="px-4 py-3 border-b shrink-0 bg-slate-100"
+            style={{ borderColor: 'hsl(215 20% 88%)' }}
+          >
+            <button
+              type="button"
+              className="flex w-full items-start gap-2 rounded-sm text-left transition-colors hover:bg-slate-200/60 -m-1 p-1 sm:items-center"
+              onClick={() => setNotesExpanded((v) => !v)}
+              aria-expanded={notesExpanded}
+              aria-controls="lead-notes-panel"
+              id="lead-notes-toggle"
+            >
+              <ChevronRight
+                size={20}
+                className={`mt-0.5 shrink-0 text-slate-600 transition-transform duration-200 sm:mt-0 ${notesExpanded ? 'rotate-90' : ''}`}
+                strokeWidth={2.25}
+                aria-hidden
+              />
+              <div className="flex min-w-0 flex-1 flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                <span
+                  className="text-sm font-semibold"
+                  style={{ color: 'var(--crm-content-header-text)' }}
+                >
+                  Lead notes
+                </span>
+                <span className="text-xs text-slate-600">
+                  {notes?.length != null ? <span className="tabular-nums">{notes.length} notes</span> : '—'}
+                  {notes && notes.length > 0 && noteSearch.trim() ? (
+                    <span className="ml-2">• showing {filteredNotes.length}</span>
+                  ) : null}
+                </span>
+              </div>
+            </button>
           </div>
-          {notes && notes.length > 0 ? (
-            <input
-              value={noteSearch}
-              onChange={(e) => setNoteSearch(e.target.value)}
-              placeholder="Search notes by title, body, or type…"
-              className="w-full rounded-md border px-3 py-2 text-sm outline-none mb-3"
-              style={{ borderColor: 'var(--color-border)' }}
-            />
-          ) : null}
-          {notesError ? (
-            <div className="space-y-3">
-              <div className="text-sm" style={{ color: 'var(--color-danger)' }}>
-                Failed to load notes: {String((notesError as Error).message)}
-              </div>
-              <NotesDatabaseSetupHint errorMessage={String((notesError as Error).message)} />
-            </div>
-          ) : isNotesPending ? (
-            <div className="text-sm opacity-80">Loading notes...</div>
-          ) : notes && notes.length > 0 ? (
-            filteredNotes.length > 0 ? (
-              <div className="flex flex-col gap-3">
-                {filteredNotes.map((n) => (
-                  <NoteSummaryCard
-                    key={n.id}
-                    to={`/leads/${safeLeadId}/notes/${n.id}`}
-                    title={n.title}
-                    body={n.body}
-                    type={n.type}
-                    occurredAt={n.occurred_at}
-                    rightSlot={
-                      <button
-                        type="button"
-                        className="text-xs font-semibold rounded-md px-2 py-1 border cursor-pointer transition-colors duration-150 border-amber-900/30 bg-amber-50 text-gray-900 hover:bg-amber-100 hover:text-[color:var(--color-danger)] disabled:opacity-50 disabled:cursor-not-allowed"
-                        onClick={async () => {
-                          const ok = window.confirm('Delete this note?')
-                          if (!ok) return
-                          setNoteError(null)
-                          try {
-                            await deleteLeadNote(n.id)
-                            await queryClient.invalidateQueries({
-                              queryKey: ['lead-notes', safeLeadId],
-                              exact: false,
-                            })
-                            await queryClient.invalidateQueries({
-                              queryKey: ['lead', safeLeadId],
-                              exact: false,
-                            })
-                          } catch (err) {
-                            setNoteError(String((err as Error).message ?? err))
-                          }
-                        }}
-                      >
-                        Delete
-                      </button>
-                    }
-                  />
-                ))}
-              </div>
-            ) : (
-              <div className="text-sm opacity-80">No notes match your search.</div>
-            )
-          ) : (
-            <div className="text-sm opacity-80">No notes yet.</div>
-          )}
 
-          <div className="mt-5 border-t pt-5">
-            <div className="text-sm font-semibold mb-3">Add a note</div>
-            {isValidUuid ? (
+          {notesExpanded ? (
+            <div id="lead-notes-panel" className="p-4 sm:p-5 flex flex-col flex-1 min-h-0" role="region" aria-labelledby="lead-notes-toggle">
+              {isValidUuid ? (
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3 mb-3">
+                  <div className="w-full min-w-0 sm:flex-1">
+                    {notes && notes.length > 0 ? (
+                      <input
+                        value={noteSearch}
+                        onChange={(e) => setNoteSearch(e.target.value)}
+                        placeholder="Search notes by title, body, or type…"
+                        className="w-full rounded-md border-2 bg-white px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-primary)] focus-visible:ring-offset-1 placeholder:text-slate-500"
+                        style={{
+                          borderColor: 'hsl(215 22% 72%)',
+                          color: 'var(--crm-content-header-text)',
+                        }}
+                      />
+                    ) : null}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setAddNoteModalOpen(true)}
+                    disabled={isLeadPending}
+                    className="inline-flex shrink-0 w-full sm:w-auto items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-semibold text-white cursor-pointer transition-colors duration-150 bg-[color:var(--color-primary)] hover:bg-[color:var(--color-primary-dark)] disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <StickyNote size={18} className="shrink-0 opacity-95" strokeWidth={2.25} aria-hidden />
+                    Add note
+                  </button>
+                </div>
+              ) : null}
+
+              {notesError ? (
+                <div className="space-y-3">
+                  <div className="text-sm" style={{ color: 'var(--color-danger)' }}>
+                    Failed to load notes: {String((notesError as Error).message)}
+                  </div>
+                  <NotesDatabaseSetupHint errorMessage={String((notesError as Error).message)} />
+                </div>
+              ) : isNotesPending ? (
+                <div className="text-sm" style={{ color: 'var(--crm-content-header-text)', opacity: 0.85 }}>
+                  Loading notes...
+                </div>
+              ) : notes && notes.length > 0 ? (
+                filteredNotes.length > 0 ? (
+                  <div className="flex flex-col gap-3">
+                    {filteredNotes.map((n) => (
+                      <NoteSummaryCard
+                        key={n.id}
+                        to={`/leads/${safeLeadId}/notes/${n.id}`}
+                        title={n.title}
+                        body={n.body}
+                        type={n.type}
+                        occurredAt={n.occurred_at}
+                        rightSlot={
+                          <button
+                            type="button"
+                            className="text-xs font-semibold rounded-md px-2 py-1 border-2 cursor-pointer transition-colors duration-150 border-red-200 bg-red-50/80 text-red-900 hover:bg-red-100 hover:border-red-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                            onClick={() => setLeadNoteToDelete(n.id)}
+                          >
+                            Delete
+                          </button>
+                        }
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-sm text-slate-600">No notes match your search.</div>
+                )
+              ) : (
+                <div className="text-sm text-slate-600">No notes yet. Use Add note above.</div>
+              )}
+            </div>
+          ) : null}
+        </div>
+      </div>
+
+      {lead ? (
+        <CreateQuoteModal
+          open={createQuoteOpen}
+          lead={lead as any}
+          onClose={() => setCreateQuoteOpen(false)}
+          onCreated={async () => {
+            await queryClient.invalidateQueries({ queryKey: ['quotes', safeLeadId], exact: false })
+            await queryClient.invalidateQueries({ queryKey: ['lead', safeLeadId], exact: false })
+          }}
+        />
+      ) : null}
+
+      {acceptQuote && lead ? (
+        <AcceptQuoteJobModal
+          open={true}
+          lead={lead}
+          quote={acceptQuote}
+          onClose={() => setAcceptQuote(null)}
+          onAccepted={async () => {
+            await queryClient.invalidateQueries({ queryKey: ['quotes', safeLeadId], exact: false })
+            await queryClient.invalidateQueries({ queryKey: ['lead', safeLeadId], exact: false })
+          }}
+        />
+      ) : null}
+
+      {addNoteModalOpen ? (
+        <ModalScrollBackdrop
+          onBackdropClose={() => setAddNoteModalOpen(false)}
+          zClass="z-[70]"
+          role="dialog"
+          aria-modal
+          aria-labelledby="lead-add-note-modal-title"
+        >
+          <div
+            className="my-4 w-full max-w-lg max-h-[min(92dvh,720px)] min-h-0 rounded-xl border shadow-lg flex flex-col bg-white ring-1 ring-black/5"
+            style={{ borderColor: 'hsl(215 20% 88%)' }}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div
+              className="px-5 py-4 border-b shrink-0 bg-slate-100"
+              style={{ borderColor: 'hsl(215 20% 88%)' }}
+            >
+              <h2
+                id="lead-add-note-modal-title"
+                className="text-base font-semibold m-0"
+                style={{ color: 'var(--crm-content-header-text)' }}
+              >
+                Add note
+              </h2>
+              <p className="text-xs text-slate-600 m-0 mt-1">
+                {name ? `Log activity for ${name}` : 'Create a lead note'}
+              </p>
+            </div>
+            <div className="p-5 overflow-y-auto flex-1 min-h-0">
               <LeadNoteComposer
                 leadId={safeLeadId}
                 onAdded={async () => {
                   setNoteError(null)
                   await queryClient.invalidateQueries({ queryKey: ['lead', safeLeadId] })
-                  await queryClient.invalidateQueries({
-                    queryKey: ['lead-notes', safeLeadId],
-                  })
+                  await queryClient.invalidateQueries({ queryKey: ['lead-notes', safeLeadId] })
+                  setAddNoteModalOpen(false)
                 }}
                 onError={(msg) => setNoteError(msg)}
+                onCancel={() => setAddNoteModalOpen(false)}
               />
-            ) : null}
+            </div>
           </div>
-        </div>
-      </div>
+        </ModalScrollBackdrop>
+      ) : null}
+
+      <ConfirmDialog
+        open={confirmDeleteLead && Boolean(lead)}
+        onClose={() => setConfirmDeleteLead(false)}
+        title="Delete this lead?"
+        description={
+          <>
+            Permanently delete this lead for <strong>{name || 'this lead'}</strong>? This cannot be
+            undone.
+          </>
+        }
+        onConfirm={async () => {
+          if (!lead) return
+          setSaving(true)
+          try {
+            await deleteLead(lead.id)
+            await queryClient.invalidateQueries({
+              queryKey: ['leads'],
+              exact: false,
+            })
+            navigate('/leads')
+          } catch (e) {
+            alert(String((e as Error).message ?? e))
+            throw e
+          } finally {
+            setSaving(false)
+          }
+        }}
+      />
+
+      <ConfirmDialog
+        open={confirmConvertLead && Boolean(lead)}
+        onClose={() => setConfirmConvertLead(false)}
+        variant="primary"
+        title="Convert to customer?"
+        confirmLabel="Convert"
+        description="A customer will be created, your latest lead notes (up to 4) will carry over, and this lead will be linked to the customer."
+        onConfirm={async () => {
+          if (!lead) return
+          setSaving(true)
+          try {
+            const customer = await convertLeadToCustomer(lead.id)
+            await Promise.all([
+              queryClient.invalidateQueries({ queryKey: ['customers'] }),
+              queryClient.invalidateQueries({ queryKey: ['leads'] }),
+            ])
+            navigate(`/customers/${customer.id}`)
+          } catch (e) {
+            alert(String((e as Error).message ?? e))
+            throw e
+          } finally {
+            setSaving(false)
+          }
+        }}
+      />
+
+      <ConfirmDialog
+        open={leadNoteToDelete !== null}
+        onClose={() => setLeadNoteToDelete(null)}
+        title="Delete this note?"
+        description="This note will be permanently removed."
+        onConfirm={async () => {
+          if (!leadNoteToDelete) return
+          setNoteError(null)
+          try {
+            await deleteLeadNote(leadNoteToDelete)
+            await queryClient.invalidateQueries({
+              queryKey: ['lead-notes', safeLeadId],
+              exact: false,
+            })
+            await queryClient.invalidateQueries({
+              queryKey: ['lead', safeLeadId],
+              exact: false,
+            })
+          } catch (err) {
+            setNoteError(String((err as Error).message ?? err))
+            throw err
+          }
+        }}
+      />
     </div>
   )
 }
@@ -593,10 +782,12 @@ function LeadNoteComposer({
   leadId,
   onAdded,
   onError,
+  onCancel,
 }: {
   leadId: string
   onAdded: () => Promise<void>
   onError: (msg: string) => void
+  onCancel?: () => void
 }) {
   const [type, setType] = useState<'note' | 'call' | 'email_sent' | 'meeting' | 'other'>('note')
   const [title, setTitle] = useState('')
@@ -644,18 +835,6 @@ function LeadNoteComposer({
       }}
     >
       <label className="flex flex-col gap-1 text-sm">
-        Title
-        <input
-          type="text"
-          className="rounded-md border px-3 py-2 outline-none"
-          style={{ borderColor: 'var(--color-border)' }}
-          placeholder="Short label for this note"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-        />
-      </label>
-
-      <label className="flex flex-col gap-1 text-sm">
         Type
         <select
           className="rounded-md border px-3 py-2 outline-none"
@@ -669,6 +848,18 @@ function LeadNoteComposer({
           <option value="meeting">meeting</option>
           <option value="other">other</option>
         </select>
+      </label>
+
+      <label className="flex flex-col gap-1 text-sm">
+        Title
+        <input
+          type="text"
+          className="rounded-md border px-3 py-2 outline-none"
+          style={{ borderColor: 'var(--color-border)' }}
+          placeholder="Short label for this note"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+        />
       </label>
 
       <label className="flex flex-col gap-1 text-sm">
@@ -692,7 +883,24 @@ function LeadNoteComposer({
         />
       </label>
 
-      <div className="flex justify-end">
+      <div
+        className="flex flex-wrap justify-end gap-2 border-t pt-3"
+        style={{ borderColor: 'var(--color-border)' }}
+      >
+        {onCancel ? (
+          <button
+            type="button"
+            className="rounded-md px-4 py-2 text-sm font-semibold border-2 bg-white cursor-pointer transition-colors duration-150 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{
+              color: 'var(--crm-content-header-text, var(--color-foreground))',
+              borderColor: 'hsl(215 22% 72%)',
+            }}
+            onClick={onCancel}
+            disabled={submitting}
+          >
+            Cancel
+          </button>
+        ) : null}
         <button
           type="submit"
           className="rounded-md px-4 py-2 text-sm font-semibold text-white cursor-pointer transition-colors duration-150 bg-[color:var(--color-primary)] hover:bg-[color:var(--color-primary-dark)] disabled:opacity-60 disabled:cursor-not-allowed"

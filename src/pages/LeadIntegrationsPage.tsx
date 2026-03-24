@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import ConfirmDialog from '../components/ConfirmDialog'
 import { Link, useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import IntegrationCreateForm from '../features/integrations/components/IntegrationCreateForm'
@@ -27,6 +28,8 @@ export default function LeadIntegrationsPage() {
     apiKey: string
     integration: IntegrationRow
   } | null>(null)
+  const [regenerateTargetId, setRegenerateTargetId] = useState<string | null>(null)
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null)
 
   async function handleCreate(values: CreateIntegrationInput) {
     setCreateBusy(true)
@@ -42,70 +45,57 @@ export default function LeadIntegrationsPage() {
     }
   }
 
-  async function handleRegenerate(id: string) {
-    const ok = window.confirm(
-      'Regenerate API key? Your website integrations must be updated with the new key.',
-    )
-    if (!ok) return
-
-    const result = await regenerateIntegrationApiKey(id)
-    setApiKeyModal({
-      apiKey: result.apiKey,
-      integration: result.integration,
-    })
-    await queryClient.invalidateQueries({ queryKey: ['integrations'] })
-  }
-
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <div className="text-xs opacity-70">
-          <Link to="/integrations/leads" className="hover:underline">
-            Integrations
-          </Link>
-          <span className="opacity-60"> / </span>
-          <span className="opacity-95">Website &amp; leads</span>
-        </div>
-        <h1 className="text-2xl font-semibold mt-1">Website &amp; lead capture</h1>
-        <p className="text-sm opacity-80 mt-1">
-          Connect your marketing site or forms with a secure webhook. Each integration gets its own key,
-          default lead status, and source label.
-        </p>
-        <p className="text-sm opacity-70 mt-2">
-          Need to call the CRM from your own app code? Use{' '}
-          <Link
-            to="/integrations/api"
-            className="font-semibold text-[color:var(--color-primary)] hover:underline"
-          >
-            REST API integration
-          </Link>
-          .
-        </p>
+    <div className="crm-light-surface flex flex-col gap-6 max-md:pt-2">
+      <div className="crm-page-header">
+        <h1 className="crm-page-header-title">Website &amp; lead capture</h1>
+        <Link
+          to="/integrations/api"
+          className="text-sm font-semibold no-underline"
+          style={{ color: 'var(--color-primary)' }}
+        >
+          REST API
+        </Link>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="rounded-xl border p-6" style={{ borderColor: 'var(--color-border)' }}>
-          <div className="text-sm font-semibold mb-2">1) Webhook endpoint</div>
-          <div className="text-xs opacity-70 mb-3">
-            Your marketing site will call this endpoint and include header <code className="text-xs">x-api-key</code>.
+        <div
+          className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-black/5"
+          style={{ borderColor: 'hsl(215 20% 88%)' }}
+        >
+          <div className="text-sm font-semibold mb-2" style={{ color: 'var(--crm-content-header-text)' }}>
+            1) Webhook endpoint
+          </div>
+          <div className="text-xs text-slate-600 mb-3">
+            Your marketing site will call this endpoint and include header <code className="text-xs text-slate-800">x-api-key</code>.
           </div>
 
           <div
-            className="rounded-lg border p-3 mb-3"
-            style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface-1)' }}
+            className="rounded-lg border-2 p-3 mb-3 bg-slate-50"
+            style={{ borderColor: 'hsl(215 22% 72%)' }}
           >
-            <div className="text-xs opacity-70 mb-1">Webhook URL</div>
-            <div className="break-all text-sm font-mono">{webhookUrl || 'Not configured'}</div>
+            <div className="text-xs text-slate-600 mb-1">Webhook URL</div>
+            <div
+              className="break-all text-sm font-mono"
+              style={{ color: 'var(--crm-content-header-text)' }}
+            >
+              {webhookUrl || 'Not configured'}
+            </div>
           </div>
 
-          <div className="text-sm opacity-80">
-            Example header: <span className="font-mono">x-api-key: {'<key>'}</span>
+          <div className="text-sm text-slate-700">
+            Example header: <span className="font-mono text-slate-800">x-api-key: {'<key>'}</span>
           </div>
         </div>
 
-        <div className="rounded-xl border p-6" style={{ borderColor: 'var(--color-border)' }}>
-          <div className="text-sm font-semibold mb-2">2) Create integration</div>
-          <div className="text-xs opacity-70 mb-3">
+        <div
+          className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-black/5"
+          style={{ borderColor: 'hsl(215 20% 88%)' }}
+        >
+          <div className="text-sm font-semibold mb-2" style={{ color: 'var(--crm-content-header-text)' }}>
+            2) Create integration
+          </div>
+          <div className="text-xs text-slate-600 mb-3">
             Generates an API key (shown once). That key maps to a default status + lead source label.
           </div>
 
@@ -116,8 +106,14 @@ export default function LeadIntegrationsPage() {
         </div>
       </div>
 
-      <div className="rounded-xl border overflow-hidden" style={{ borderColor: 'var(--color-border)' }}>
-        <div className="grid grid-cols-6 bg-[color:var(--color-surface-1)] p-3 text-xs font-semibold">
+      <div
+        className="rounded-xl overflow-hidden bg-white shadow-sm ring-1 ring-black/5"
+        style={{ borderColor: 'hsl(215 20% 88%)' }}
+      >
+        <div
+          className="grid grid-cols-6 p-3 text-xs font-semibold border-b bg-slate-100"
+          style={{ borderColor: 'hsl(215 20% 88%)', color: 'var(--crm-content-header-text)' }}
+        >
           <div className="col-span-2">Integration</div>
           <div>Source label</div>
           <div>Default status</div>
@@ -126,15 +122,15 @@ export default function LeadIntegrationsPage() {
         </div>
 
         {isPending ? (
-          <div className="p-6 text-sm opacity-80">Loading integrations...</div>
+          <div className="p-6 text-sm text-slate-600">Loading integrations...</div>
         ) : error ? (
           <div className="p-6 text-sm" style={{ color: 'var(--color-danger)' }}>
             Failed to load integrations. {String((error as Error).message)}
           </div>
         ) : !integrations || integrations.length === 0 ? (
           <div className="p-6">
-            <div className="text-sm opacity-80">No integrations yet.</div>
-            <div className="text-xs opacity-70 mt-1">Create one using the form above.</div>
+            <div className="text-sm text-slate-700">No integrations yet.</div>
+            <div className="text-xs text-slate-600 mt-1">Create one using the form above.</div>
           </div>
         ) : (
           <div className="flex flex-col">
@@ -144,8 +140,8 @@ export default function LeadIntegrationsPage() {
                 role="button"
                 tabIndex={0}
                 aria-label={`View integration ${i.name}`}
-                className="grid grid-cols-6 items-center p-3 border-b cursor-pointer transition-colors duration-150 hover:bg-[color:var(--color-surface-2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[color:var(--color-primary)]"
-                style={{ borderColor: 'var(--color-border)' }}
+                className="grid grid-cols-6 items-center p-3 border-b cursor-pointer transition-colors duration-150 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[color:var(--color-primary)]"
+                style={{ borderColor: 'hsl(215 20% 88%)', color: 'var(--crm-content-header-text)' }}
                 onClick={() => navigate(`/integrations/leads/${i.id}`)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' || e.key === ' ') {
@@ -156,13 +152,13 @@ export default function LeadIntegrationsPage() {
               >
                 <div className="col-span-2">
                   <div className="text-sm font-semibold">{i.name}</div>
-                  <div className="text-xs opacity-70">
+                  <div className="text-xs text-slate-500">
                     Created {new Date(i.created_at).toLocaleDateString()}
                   </div>
                 </div>
-                <div className="text-sm opacity-90 truncate">{i.source_label}</div>
-                <div className="text-sm opacity-90 truncate">{i.default_status}</div>
-                <div className="text-sm opacity-90">
+                <div className="text-sm text-slate-700 truncate">{i.source_label}</div>
+                <div className="text-sm text-slate-700 truncate">{i.default_status}</div>
+                <div className="text-sm">
                   {i.enabled ? (
                     <span style={{ color: 'var(--color-success)', fontWeight: 700 }}>Enabled</span>
                   ) : (
@@ -177,20 +173,19 @@ export default function LeadIntegrationsPage() {
                   <div className="flex items-center justify-end gap-2">
                     <button
                       type="button"
-                      className="cursor-pointer rounded-md px-2 py-1 text-xs font-semibold border transition-colors duration-150 border-[color:var(--color-border)] bg-transparent hover:bg-[color:var(--color-surface-2)]"
-                      onClick={() => void handleRegenerate(i.id)}
+                      className="cursor-pointer rounded-md px-2 py-1 text-xs font-semibold border-2 transition-colors duration-150 bg-white hover:bg-slate-50"
+                      style={{
+                        color: 'var(--crm-content-header-text)',
+                        borderColor: 'hsl(215 22% 72%)',
+                      }}
+                      onClick={() => setRegenerateTargetId(i.id)}
                     >
                       Regenerate key
                     </button>
                     <button
                       type="button"
-                      className="cursor-pointer rounded-md px-2 py-1 text-xs font-semibold border border-transparent bg-transparent text-[color:var(--color-danger)] hover:bg-red-600 hover:border-red-600 hover:text-white transition-colors duration-150"
-                      onClick={async () => {
-                        const ok = window.confirm('Delete this integration?')
-                        if (!ok) return
-                        await deleteIntegration(i.id)
-                        await queryClient.invalidateQueries({ queryKey: ['integrations'] })
-                      }}
+                      className="cursor-pointer rounded-md px-2 py-1 text-xs font-semibold border-2 border-transparent bg-transparent text-[color:var(--color-danger)] hover:bg-red-600 hover:border-red-600 hover:text-white transition-colors duration-150"
+                      onClick={() => setDeleteTargetId(i.id)}
                     >
                       Delete
                     </button>
@@ -209,6 +204,36 @@ export default function LeadIntegrationsPage() {
           onClose={() => setApiKeyModal(null)}
         />
       ) : null}
+
+      <ConfirmDialog
+        open={regenerateTargetId !== null}
+        onClose={() => setRegenerateTargetId(null)}
+        variant="primary"
+        title="Regenerate API key?"
+        confirmLabel="Regenerate key"
+        description="Your website integrations must be updated with the new key. The new key will be shown once."
+        onConfirm={async () => {
+          if (!regenerateTargetId) return
+          const result = await regenerateIntegrationApiKey(regenerateTargetId)
+          setApiKeyModal({
+            apiKey: result.apiKey,
+            integration: result.integration,
+          })
+          await queryClient.invalidateQueries({ queryKey: ['integrations'] })
+        }}
+      />
+
+      <ConfirmDialog
+        open={deleteTargetId !== null}
+        onClose={() => setDeleteTargetId(null)}
+        title="Delete integration?"
+        description="Website forms using this key will stop creating leads until you add a new integration."
+        onConfirm={async () => {
+          if (!deleteTargetId) return
+          await deleteIntegration(deleteTargetId)
+          await queryClient.invalidateQueries({ queryKey: ['integrations'] })
+        }}
+      />
     </div>
   )
 }

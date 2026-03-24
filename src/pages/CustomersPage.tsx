@@ -1,165 +1,234 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Download } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Download, Plus } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
-import TablePagination, { DEFAULT_PAGE_SIZE } from '../components/TablePagination'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import TablePagination from '../components/TablePagination'
+import { CallLinkCell, EmailLinkCell } from '../components/ContactActionButtons'
 import ExportDataModal from '../components/ExportDataModal'
-import { listCustomers } from '../features/customers/api/customersApi'
+import {
+  listCustomersForExport,
+  listCustomersPaged,
+} from '../features/customers/api/customersApi'
 import { CUSTOMER_EXPORT_FIELDS, runCustomerExport } from '../lib/exportCustomersCsv'
+
+const CUSTOMERS_PAGE_SIZE = 10
 
 export default function CustomersPage() {
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [page, setPage] = useState(1)
   const [exportOpen, setExportOpen] = useState(false)
 
-  const { data: customers, isPending, error } = useQuery({
-    queryKey: ['customers'],
-    queryFn: () => listCustomers(),
-  })
-
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase()
-    if (!q) return customers ?? []
-
-    return (customers ?? []).filter((c) => {
-      const contact = [c.primary_first_name, c.primary_last_name]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase()
-      return (
-        (c.name ?? '').toLowerCase().includes(q) ||
-        contact.includes(q) ||
-        (c.primary_email ?? '').toLowerCase().includes(q) ||
-        (c.primary_phone ?? '').toLowerCase().includes(q) ||
-        (c.industry ?? '').toLowerCase().includes(q) ||
-        (c.status ?? '').toLowerCase().includes(q)
-      )
-    })
-  }, [customers, search])
+  useEffect(() => {
+    const t = window.setTimeout(() => setDebouncedSearch(search), 300)
+    return () => window.clearTimeout(t)
+  }, [search])
 
   useEffect(() => {
     setPage(1)
   }, [search])
 
-  const totalFiltered = filtered.length
-  const totalPages = Math.max(1, Math.ceil(totalFiltered / DEFAULT_PAGE_SIZE))
+  const {
+    data: paged,
+    isPending,
+    error,
+  } = useQuery({
+    queryKey: [
+      'customers',
+      'paged',
+      {
+        search: debouncedSearch,
+        page,
+        pageSize: CUSTOMERS_PAGE_SIZE,
+      },
+    ],
+    queryFn: () =>
+      listCustomersPaged({
+        page,
+        pageSize: CUSTOMERS_PAGE_SIZE,
+        search: debouncedSearch,
+      }),
+    placeholderData: keepPreviousData,
+  })
+
+  const total = paged?.total ?? 0
+  const pageRows = paged?.rows ?? []
+  const totalPages = Math.max(1, Math.ceil(total / CUSTOMERS_PAGE_SIZE))
 
   useEffect(() => {
     if (page > totalPages) setPage(totalPages)
   }, [page, totalPages])
 
   const safePage = Math.min(Math.max(1, page), totalPages)
-  const pageRows = useMemo(() => {
-    const start = (safePage - 1) * DEFAULT_PAGE_SIZE
-    return filtered.slice(start, start + DEFAULT_PAGE_SIZE)
-  }, [filtered, safePage])
+  const showInitialLoading = isPending && !paged
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold">Customers</h1>
-          <p className="text-sm opacity-80 mt-1">
-            Manage customer records, notes, and service history.
-          </p>
-        </div>
-
-        <div className="flex flex-wrap gap-2">
+    <div className="flex flex-col gap-4 max-md:pt-2">
+      <div className="crm-page-header crm-page-header--white crm-page-header--compact">
+        <h1 className="crm-page-header-title">Customers</h1>
+        <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
-            className="rounded-md px-3 py-2 text-sm font-semibold border cursor-pointer transition-colors duration-150 border-[color:var(--color-border)] bg-transparent text-[color:var(--color-foreground)] hover:bg-[color:var(--color-surface-2)] inline-flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-            onClick={() => setExportOpen(true)}
-            disabled={isPending}
-            title="Export customers matching your search"
-          >
-            <Download size={16} className="shrink-0 opacity-90" aria-hidden />
-            Export
-          </button>
-          <button
-            type="button"
-            className="rounded-md px-3 py-2 text-sm font-semibold text-white cursor-pointer transition-colors duration-150 bg-[color:var(--color-primary)] hover:bg-[color:var(--color-primary-dark)] disabled:opacity-60 disabled:cursor-not-allowed"
+            className="inline-flex items-center justify-center gap-2 rounded-sm px-3 py-2 text-sm font-semibold text-white cursor-pointer transition-colors duration-150 bg-[color:var(--color-primary)] hover:bg-[color:var(--color-primary-dark)] disabled:opacity-60 disabled:cursor-not-allowed"
             onClick={() => navigate('/customers/new')}
-            disabled={isPending}
+            disabled={showInitialLoading}
           >
+            <Plus size={18} className="shrink-0 opacity-95" strokeWidth={2.5} aria-hidden />
             Add Customer
           </button>
+          <button
+            type="button"
+            className="crm-dashboard-export-stats inline-flex items-center justify-center gap-2 rounded-sm px-3 py-2 text-sm font-semibold cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+            onClick={() => setExportOpen(true)}
+            disabled={showInitialLoading}
+            title="Export customers matching your search"
+          >
+            Export
+            <Download size={18} className="shrink-0 opacity-95" aria-hidden />
+          </button>
         </div>
       </div>
 
-      <div className="flex items-center justify-between gap-3">
-        <input
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search customers..."
-          className="w-full rounded-md border px-3 py-2 outline-none"
-          style={{ borderColor: 'var(--color-border)' }}
-        />
-      </div>
-
-      <div
-        className="rounded-xl border overflow-hidden"
-        style={{ borderColor: 'var(--color-border)' }}
+      <p
+        className="text-sm m-0 leading-relaxed -mt-0.5"
+        style={{ color: 'var(--crm-content-header-text)' }}
       >
-        <div className="grid grid-cols-6 bg-[color:var(--color-surface-1)] p-3 text-xs font-semibold">
-          <div>Name</div>
-          <div>Primary contact</div>
-          <div>Email</div>
-          <div>Phone</div>
-          <div>Industry</div>
-          <div>Status</div>
+        Convert a closed deal from your pipeline into a customer record from any lead.{' '}
+        <Link
+          to="/leads"
+          className="font-semibold underline-offset-2 hover:underline"
+          style={{ color: 'var(--color-primary)' }}
+        >
+          View leads
+        </Link>
+      </p>
+
+      <div className="rounded-xl bg-white shadow-sm ring-1 ring-black/5 overflow-hidden">
+        <div
+          className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 py-3 border-b"
+          style={{ borderColor: 'var(--color-border)' }}
+        >
+          <div
+            className="text-sm font-semibold"
+            style={{ color: 'var(--crm-content-header-text)' }}
+          >
+            Customer list
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3 min-w-0 flex-1 sm:flex-initial sm:justify-end">
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search customers..."
+              className="w-full sm:max-w-xs rounded-md border-2 bg-white px-3 py-2 text-sm outline-none min-w-0 focus-visible:ring-2 focus-visible:ring-[color:var(--color-primary)] focus-visible:ring-offset-1 placeholder:text-slate-500"
+              style={{
+                borderColor: 'hsl(215 22% 72%)',
+                color: 'var(--crm-content-header-text)',
+              }}
+              disabled={showInitialLoading}
+            />
+          </div>
         </div>
 
-        {isPending ? (
-          <div className="p-6 text-sm opacity-80">Loading customers...</div>
+        <div
+          className="grid grid-cols-4 md:grid-cols-6 gap-2 bg-slate-100 p-3 text-xs font-semibold"
+          style={{ color: 'var(--crm-content-header-text)' }}
+        >
+          <div className="truncate min-w-0">Name</div>
+          <div className="hidden md:block truncate min-w-0">Primary contact</div>
+          <div className="truncate min-w-0">Email</div>
+          <div className="truncate min-w-0">Phone</div>
+          <div className="hidden md:block truncate min-w-0">Industry</div>
+          <div className="truncate min-w-0">Status</div>
+        </div>
+
+        {showInitialLoading ? (
+          <div className="p-6 text-sm" style={{ color: 'var(--crm-content-header-text)', opacity: 0.85 }}>
+            Loading customers...
+          </div>
         ) : error ? (
           <div className="p-6 text-sm" style={{ color: 'var(--color-danger)' }}>
             Failed to load customers. {String((error as Error).message)}
           </div>
-        ) : customers && customers.length > 0 && totalFiltered === 0 ? (
+        ) : total === 0 && debouncedSearch.trim() ? (
           <div className="p-6">
-            <div className="text-sm opacity-80">No customers match your search.</div>
-            <div className="text-xs opacity-70 mt-2">Try another name, email, phone, or industry.</div>
+            <div className="text-sm" style={{ color: 'var(--crm-content-header-text)' }}>
+              No customers match your search.
+            </div>
+            <div className="text-xs mt-2 text-slate-600">
+              Try another name, email, phone, or industry.
+            </div>
           </div>
-        ) : totalFiltered > 0 ? (
+        ) : total > 0 ? (
           <>
-            <div className="flex flex-col">
-              {pageRows.map((c) => {
+            <div className="px-2 pt-2 pb-0">
+              {pageRows.map((c, idx) => {
+                const contact = [c.primary_first_name, c.primary_last_name].filter(Boolean).join(' ')
+                const statusColor =
+                  c.status === 'Active'
+                    ? 'var(--color-success)'
+                    : c.status === 'Churned'
+                      ? 'var(--color-danger)'
+                      : c.status === 'OnHold'
+                        ? 'var(--color-info)'
+                        : 'var(--color-accent)'
+                const isLast = idx === pageRows.length - 1
                 return (
-                  <Link
+                  <div
                     key={c.id}
-                    to={`/customers/${c.id}`}
-                    className="grid grid-cols-6 gap-2 px-3 py-3 items-center border-b"
-                    style={{
-                      borderColor: 'var(--color-border)',
-                      textDecoration: 'none',
-                      color: 'inherit',
-                    }}
+                    className={`grid grid-cols-4 md:grid-cols-6 gap-2 px-3 py-2.5 items-center border-b transition-colors hover:bg-slate-50 ${isLast ? 'border-b-0' : ''}`}
+                    style={{ borderColor: 'hsl(215 20% 88%)', color: 'var(--crm-content-header-text)' }}
                   >
-                    <div className="truncate text-sm font-semibold">{c.name}</div>
-                    <div className="truncate text-sm opacity-90">
-                      {[c.primary_first_name, c.primary_last_name].filter(Boolean).join(' ') || '—'}
+                    <Link
+                      to={`/customers/${c.id}`}
+                      className="truncate text-sm font-semibold min-w-0 no-underline hover:underline underline-offset-2"
+                      style={{ color: 'var(--crm-content-header-text)' }}
+                    >
+                      {c.name}
+                    </Link>
+                    <div className="hidden md:block truncate text-sm text-slate-700 min-w-0">
+                      {contact || '—'}
                     </div>
-                    <div className="truncate text-sm opacity-90">{c.primary_email || '—'}</div>
-                    <div className="truncate text-sm opacity-90">{c.primary_phone || '—'}</div>
-                    <div className="truncate text-sm opacity-90">{c.industry || '—'}</div>
-                    <div className="truncate text-sm opacity-70">{c.status}</div>
-                  </Link>
+                    <div className="min-w-0 flex items-center">
+                      <EmailLinkCell email={c.primary_email} contactLabel={c.name} />
+                    </div>
+                    <div className="min-w-0 flex items-center">
+                      <CallLinkCell phone={c.primary_phone} />
+                    </div>
+                    <div className="hidden md:block truncate text-sm text-slate-700 min-w-0">
+                      {c.industry || '—'}
+                    </div>
+                    <div className="text-xs font-semibold min-w-0">
+                      <span
+                        className="inline-flex rounded-full px-2 py-1 max-w-full"
+                        style={{
+                          background: 'color-mix(in srgb, var(--color-primary) 10%, transparent)',
+                          border: '1px solid hsl(215 22% 78%)',
+                        }}
+                      >
+                        <span className="truncate" style={{ color: statusColor }}>
+                          {c.status}
+                        </span>
+                      </span>
+                    </div>
+                  </div>
                 )
               })}
             </div>
             <TablePagination
               page={safePage}
-              pageSize={DEFAULT_PAGE_SIZE}
-              total={totalFiltered}
+              pageSize={CUSTOMERS_PAGE_SIZE}
+              total={total}
               onPageChange={setPage}
             />
           </>
         ) : (
           <div className="p-6">
-            <div className="text-sm opacity-80">No customers found.</div>
-            <div className="text-xs opacity-70 mt-2">
-              Add your first customer, or convert from a lead.
+            <div className="text-sm" style={{ color: 'var(--crm-content-header-text)' }}>
+              No customers found.
+            </div>
+            <div className="text-xs mt-2 text-slate-600">
+              Add your first customer, or convert from a lead on the Leads page.
             </div>
           </div>
         )}
@@ -169,11 +238,13 @@ export default function CustomersPage() {
         open={exportOpen}
         onClose={() => setExportOpen(false)}
         title="Export customers"
-        rowCount={totalFiltered}
+        rowCount={total}
         exportFields={CUSTOMER_EXPORT_FIELDS}
-        onRunExport={(opts) => runCustomerExport(filtered, opts)}
+        onRunExport={async (opts) => {
+          const rows = await listCustomersForExport({ search: debouncedSearch })
+          runCustomerExport(rows, opts)
+        }}
       />
     </div>
   )
 }
-

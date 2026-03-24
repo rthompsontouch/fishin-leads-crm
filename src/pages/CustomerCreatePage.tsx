@@ -26,12 +26,8 @@ export default function CustomerCreatePage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <div className="text-xs opacity-70">
-          <Link to="/customers">Customers</Link> <span className="opacity-60">/</span>{' '}
-          <span className="opacity-95">New customer</span>
-        </div>
-        <h1 className="text-2xl font-semibold mt-1">Add Customer</h1>
+      <div className="crm-page-header">
+        <h1 className="crm-page-header-title">Add Customer</h1>
       </div>
 
       <div className="rounded-xl border p-6" style={{ borderColor: 'var(--color-border)' }}>

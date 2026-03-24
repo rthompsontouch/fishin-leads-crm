@@ -1,7 +1,11 @@
 import { Mail, Phone } from 'lucide-react'
 
 const linkClass =
-  'crm-contact-link inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold border transition-colors duration-150 border-[color:var(--color-border)] bg-transparent text-[color:var(--color-foreground)] hover:bg-[color:var(--color-surface-2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--color-background)]'
+  'crm-contact-link crm-contact-link--dark inline-flex items-center gap-1.5 rounded-sm px-3 py-1.5 text-xs font-semibold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[color:var(--crm-sidebar-links-bg)]'
+
+/** Tighter pills for table cells (mobile + desktop). */
+const linkClassTable =
+  'crm-contact-link crm-contact-link--dark inline-flex items-center gap-1 rounded-sm px-2 py-1 text-[11px] font-semibold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:ring-offset-1 focus-visible:ring-offset-[color:var(--color-background)] whitespace-nowrap shrink-0'
 
 /** Build `tel:` href from stored phone (digits and leading + kept). */
 export function telHref(phone: string | null | undefined): string | null {
@@ -18,6 +22,46 @@ export function mailtoHref(email: string | null | undefined, subject?: string): 
   const s = subject?.trim()
   if (s) return `mailto:${e}?subject=${encodeURIComponent(s)}`
   return `mailto:${e}`
+}
+
+export function CallLinkCell({
+  phone,
+  className = '',
+}: {
+  phone?: string | null
+  className?: string
+}) {
+  const tel = telHref(phone)
+  if (!tel) {
+    return <span className={`text-sm text-slate-400 tabular-nums ${className}`.trim()}>—</span>
+  }
+  return (
+    <a href={tel} className={`${linkClassTable} ${className}`.trim()}>
+      <Phone size={12} className="shrink-0 opacity-80" aria-hidden />
+      Call
+    </a>
+  )
+}
+
+export function EmailLinkCell({
+  email,
+  contactLabel,
+  className = '',
+}: {
+  email?: string | null
+  contactLabel?: string
+  className?: string
+}) {
+  const mail = mailtoHref(email, contactLabel ? `Re: ${contactLabel}` : undefined)
+  if (!mail) {
+    return <span className={`text-sm text-slate-400 ${className}`.trim()}>—</span>
+  }
+  return (
+    <a href={mail} className={`${linkClassTable} ${className}`.trim()}>
+      <Mail size={12} className="shrink-0 opacity-90" aria-hidden />
+      Email
+    </a>
+  )
 }
 
 type ContactActionButtonsProps = {
@@ -48,7 +92,7 @@ export default function ContactActionButtons({
       ) : null}
       {mail ? (
         <a href={mail} className={linkClass}>
-          <Mail size={14} className="shrink-0 opacity-80" aria-hidden />
+          <Mail size={14} className="shrink-0 opacity-90" aria-hidden />
           Email
         </a>
       ) : null}

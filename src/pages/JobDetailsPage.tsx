@@ -47,32 +47,36 @@ export default function JobDetailsPage() {
     }
   }, [job?.reminder_at])
 
+  const outlineBtn =
+    'rounded-md px-3 py-2 text-sm font-semibold cursor-pointer transition-colors duration-150 border-2 bg-white hover:bg-slate-50'
+
   return (
-    <div className="flex flex-col gap-6 max-md:pt-2">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div>
-          <div className="text-xs opacity-70">
-            <Link to="/">Dashboard</Link>
-            <span className="opacity-60"> / </span>
-            <span className="opacity-95">Job</span>
-          </div>
-          <h1 className="text-2xl font-semibold mt-1">
-            {isPending ? 'Loading…' : job ? 'Scheduled Job' : 'Job'}
-          </h1>
-          <div className="text-sm opacity-80 mt-2">
-            {job ? `Scheduled: ${job.scheduled_date}` : null}
-          </div>
-        </div>
-        <div className="flex gap-2">
+    <div className="flex flex-col gap-4 max-md:pt-2">
+      <div className="crm-page-header crm-page-header--white crm-page-header--compact">
+        <h1 className="crm-page-header-title">
+          {isPending ? 'Loading…' : job ? (job.status === 'Scheduled' ? 'Scheduled job' : 'Job') : 'Job'}
+        </h1>
+        <div className="flex flex-wrap gap-2">
           {job ? (
-            <Link to={`/customers/${job.customer_id}`} className="rounded-md px-3 py-2 text-sm font-semibold border border-[color:var(--color-border)] bg-transparent hover:bg-[color:var(--color-surface-2)]">
+            <Link
+              to={`/customers/${job.customer_id}`}
+              className={`${outlineBtn} no-underline inline-flex items-center justify-center`}
+              style={{
+                color: 'var(--crm-content-header-text)',
+                borderColor: 'hsl(215 22% 55%)',
+              }}
+            >
               Customer
             </Link>
           ) : null}
           <button
             type="button"
             onClick={() => navigate(-1)}
-            className="rounded-md px-3 py-2 text-sm font-semibold border border-[color:var(--color-border)] bg-transparent hover:bg-[color:var(--color-surface-2)]"
+            className={outlineBtn}
+            style={{
+              color: 'var(--crm-content-header-text)',
+              borderColor: 'hsl(215 22% 55%)',
+            }}
           >
             Back
           </button>
@@ -80,54 +84,71 @@ export default function JobDetailsPage() {
       </div>
 
       {error ? (
-        <div className="rounded-xl border p-4 text-sm" style={{ borderColor: 'var(--color-border)', color: 'var(--color-danger)' }}>
+        <div
+          className="rounded-xl bg-white shadow-sm ring-1 ring-black/5 p-4 text-sm"
+          style={{ color: 'var(--color-danger)' }}
+        >
           Failed to load job. {String((error as Error).message)}
         </div>
       ) : null}
 
       {job ? (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-          <div className="lg:col-span-2 rounded-xl border p-5" style={{ borderColor: 'var(--color-border)' }}>
-            <div className="text-sm font-semibold mb-3">Job details</div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+          <div className="lg:col-span-2 rounded-xl bg-white shadow-sm ring-1 ring-black/5 p-5 overflow-hidden">
+            <div
+              className="text-sm font-semibold mb-4 pb-3 border-b"
+              style={{ borderColor: 'hsl(215 20% 88%)', color: 'var(--crm-content-header-text)' }}
+            >
+              Job details
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <div className="text-xs opacity-70">Quote</div>
-                <div className="text-sm font-semibold break-all">
+                <div className="text-xs font-medium text-slate-500">Quote</div>
+                <div className="text-sm font-semibold break-all mt-0.5" style={{ color: 'var(--crm-content-header-text)' }}>
                   {quote ? `${quote.price_currency} ${quote.price_amount}` : job.quote_id}
                 </div>
                 {quote?.description?.trim() ? (
-                  <div className="text-xs opacity-70 mt-1 whitespace-pre-wrap">{quote.description}</div>
+                  <div className="text-xs text-slate-600 mt-1 whitespace-pre-wrap">{quote.description}</div>
                 ) : null}
               </div>
               <div>
-                <div className="text-xs opacity-70">Status</div>
-                <div className="text-sm font-semibold">{job.status}</div>
+                <div className="text-xs font-medium text-slate-500">Status</div>
+                <div className="text-sm font-semibold mt-0.5" style={{ color: 'var(--crm-content-header-text)' }}>
+                  {job.status}
+                </div>
               </div>
               <div>
-                <div className="text-xs opacity-70">Recurrence</div>
-                <div className="text-sm font-semibold">
+                <div className="text-xs font-medium text-slate-500">Recurrence</div>
+                <div className="text-sm font-semibold mt-0.5" style={{ color: 'var(--crm-content-header-text)' }}>
                   {job.is_recurring ? `Recurring (${job.recurrence_unit ?? 'weekly'})` : 'One-time'}
                 </div>
               </div>
               <div>
-                <div className="text-xs opacity-70">Reminder</div>
-                <div className="text-sm font-semibold">
+                <div className="text-xs font-medium text-slate-500">Reminder</div>
+                <div className="text-sm font-semibold mt-0.5" style={{ color: 'var(--crm-content-header-text)' }}>
                   {job.reminder_at ? (job.reminder_sent_at ? 'Sent' : `Due: ${reminderLabel}`) : '—'}
                 </div>
               </div>
             </div>
             {job.notes ? (
-              <div className="mt-4 pt-4 border-t">
-                <div className="text-xs opacity-70">Notes</div>
-                <div className="text-sm mt-1 whitespace-pre-wrap">{job.notes}</div>
+              <div className="mt-4 pt-4 border-t" style={{ borderColor: 'hsl(215 20% 88%)' }}>
+                <div className="text-xs font-medium text-slate-500">Notes</div>
+                <div className="text-sm mt-1 whitespace-pre-wrap" style={{ color: 'var(--crm-content-header-text)' }}>
+                  {job.notes}
+                </div>
               </div>
             ) : null}
           </div>
 
-          <div className="rounded-xl border p-5" style={{ borderColor: 'var(--color-border)' }}>
-            <div className="text-sm font-semibold mb-3">Complete</div>
+          <div className="rounded-xl bg-white shadow-sm ring-1 ring-black/5 p-5 overflow-hidden">
+            <div
+              className="text-sm font-semibold mb-4 pb-3 border-b"
+              style={{ borderColor: 'hsl(215 20% 88%)', color: 'var(--crm-content-header-text)' }}
+            >
+              Complete
+            </div>
             {job.status !== 'Scheduled' ? (
-              <div className="text-sm opacity-80">This job is already completed.</div>
+              <div className="text-sm text-slate-600">This job is already completed.</div>
             ) : (
               <form
                 className="flex flex-col gap-4"
@@ -149,6 +170,7 @@ export default function JobDetailsPage() {
                     setCompletedNotes('')
                     await queryClient.invalidateQueries({ queryKey: ['job', safeJobId], exact: false })
                     await queryClient.invalidateQueries({ queryKey: ['jobs-upcoming'], exact: false })
+                    await queryClient.invalidateQueries({ queryKey: ['jobs-list'], exact: false })
                     await queryClient.invalidateQueries({ queryKey: ['customers'], exact: false })
                   } catch (err) {
                     setUiError(String((err as Error).message ?? err))
@@ -157,30 +179,41 @@ export default function JobDetailsPage() {
                   }
                 }}
               >
-                <label className="flex flex-col gap-1 text-sm">
+                <label
+                  className="flex flex-col gap-1.5 text-sm font-medium"
+                  style={{ color: 'var(--crm-content-header-text)' }}
+                >
                   Upload attachments (optional)
                   <input
                     type="file"
                     multiple
                     onChange={(e) => setFiles(Array.from(e.target.files ?? []))}
-                    className="rounded-md border px-3 py-2 outline-none"
-                    style={{ borderColor: 'var(--color-border)' }}
+                    className="rounded-md border-2 px-3 py-2 outline-none text-sm font-normal focus-visible:ring-2 focus-visible:ring-[color:var(--color-primary)] focus-visible:ring-offset-1"
+                    style={{ borderColor: 'hsl(215 22% 72%)' }}
                   />
-                  <div className="text-xs opacity-70">{files.length ? `${files.length} selected` : 'No attachments selected'}</div>
+                  <div className="text-xs font-normal text-slate-600">
+                    {files.length ? `${files.length} selected` : 'No attachments selected'}
+                  </div>
                 </label>
 
-                <label className="flex flex-col gap-1 text-sm">
+                <label
+                  className="flex flex-col gap-1.5 text-sm font-medium"
+                  style={{ color: 'var(--crm-content-header-text)' }}
+                >
                   Completed notes (optional)
                   <textarea
                     value={completedNotes}
                     onChange={(e) => setCompletedNotes(e.target.value)}
-                    className="rounded-md border px-3 py-2 outline-none"
-                    style={{ borderColor: 'var(--color-border)', minHeight: 96 }}
+                    className="rounded-md border-2 px-3 py-2 outline-none text-sm font-normal min-h-[96px] focus-visible:ring-2 focus-visible:ring-[color:var(--color-primary)] focus-visible:ring-offset-1"
+                    style={{ borderColor: 'hsl(215 22% 72%)', color: 'var(--crm-content-header-text)' }}
                   />
                 </label>
 
                 {uiError ? (
-                  <div className="text-sm rounded-lg border px-3 py-2" style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface-2)', color: 'var(--color-danger)' }}>
+                  <div
+                    className="text-sm rounded-lg border-2 px-3 py-2 bg-slate-50"
+                    style={{ borderColor: 'hsl(215 22% 72%)', color: 'var(--color-danger)' }}
+                  >
                     {uiError}
                   </div>
                 ) : null}

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import ModalScrollBackdrop from '../../../components/ModalScrollBackdrop'
 import type { LeadRow } from '../api/quotesApi'
 import { createQuoteFromLead } from '../api/quotesApi'
 
@@ -36,20 +37,13 @@ export default function CreateQuoteModal({
   if (!open) return null
 
   return (
-    <div
-      className="fixed inset-0 z-50"
-      role="dialog"
-      aria-modal="true"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose()
-      }}
-      style={{ background: 'rgba(0,0,0,0.45)' }}
-    >
+    <ModalScrollBackdrop onBackdropClose={onClose} zClass="z-50" role="dialog" aria-modal>
       <div
-        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[min(900px,92vw)] rounded-xl border p-5 overflow-hidden"
+        className="my-4 w-full max-w-[min(900px,100%)] max-h-[min(92dvh,900px)] min-h-0 flex flex-col rounded-xl border shadow-lg overflow-hidden"
         style={{ borderColor: 'var(--color-border)', background: 'var(--color-background)' }}
+        onMouseDown={(e) => e.stopPropagation()}
       >
-        <div className="flex items-start justify-between gap-4 mb-4">
+        <div className="shrink-0 flex items-start justify-between gap-4 p-5 pb-3 border-b" style={{ borderColor: 'var(--color-border)' }}>
           <div>
             <div className="text-xs opacity-70">Create quote for</div>
             <div className="text-lg font-semibold mt-1">{recipient}</div>
@@ -64,6 +58,7 @@ export default function CreateQuoteModal({
         </div>
 
         <form
+          className="flex flex-col flex-1 min-h-0 overflow-y-auto crm-scrollbar p-5 pt-4 gap-4"
           onSubmit={async (e) => {
             e.preventDefault()
             setError(null)
@@ -107,7 +102,6 @@ export default function CreateQuoteModal({
               setSubmitting(false)
             }
           }}
-          className="flex flex-col gap-4"
         >
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <label className="flex flex-col gap-1 text-sm">
@@ -274,7 +268,7 @@ export default function CreateQuoteModal({
           </div>
         </form>
       </div>
-    </div>
+    </ModalScrollBackdrop>
   )
 }
 

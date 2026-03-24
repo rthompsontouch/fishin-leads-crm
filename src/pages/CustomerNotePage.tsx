@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import ConfirmDialog from '../components/ConfirmDialog'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -15,6 +16,7 @@ export default function CustomerNotePage() {
   const queryClient = useQueryClient()
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   const safeCustomerId = useMemo(() => (customerId ? String(customerId) : ''), [customerId])
   const safeNoteId = useMemo(() => (noteId ? String(noteId) : ''), [noteId])
@@ -68,32 +70,13 @@ export default function CustomerNotePage() {
         <div className="text-sm opacity-80">Note not found.</div>
       ) : (
         <>
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <h1 className="text-2xl font-semibold text-gray-900">
-              {displayNoteTitle(note.title, note.body)}
-            </h1>
+          <div className="crm-page-header">
+            <h1 className="crm-page-header-title">{displayNoteTitle(note.title, note.body)}</h1>
             <button
               type="button"
               className="rounded-md px-3 py-1.5 text-xs font-semibold border cursor-pointer transition-colors duration-150 border-[color:var(--color-border)] bg-transparent text-[color:var(--color-foreground)] hover:bg-[color:var(--color-surface-2)] hover:text-[color:var(--color-danger)] disabled:opacity-50"
               disabled={busy}
-              onClick={async () => {
-                const ok = window.confirm('Delete this note?')
-                if (!ok) return
-                setErr(null)
-                setBusy(true)
-                try {
-                  await deleteCustomerNote(note.id)
-                  await queryClient.invalidateQueries({
-                    queryKey: ['customer-notes', safeCustomerId],
-                    exact: false,
-                  })
-                  navigate(`/customers/${safeCustomerId}`)
-                } catch (e) {
-                  setErr(String((e as Error).message ?? e))
-                } finally {
-                  setBusy(false)
-                }
-              }}
+              onClick={() => setConfirmDelete(true)}
             >
               Delete note
             </button>
@@ -124,6 +107,31 @@ export default function CustomerNotePage() {
           </Link>
         </>
       )}
+
+      <ConfirmDialog
+        open={confirmDelete && Boolean(note)}
+        onClose={() => setConfirmDelete(false)}
+        title="Delete this note?"
+        description="This note will be permanently removed."
+        onConfirm={async () => {
+          if (!note) return
+          setErr(null)
+          setBusy(true)
+          try {
+            await deleteCustomerNote(note.id)
+            await queryClient.invalidateQueries({
+              queryKey: ['customer-notes', safeCustomerId],
+              exact: false,
+            })
+            navigate(`/customers/${safeCustomerId}`)
+          } catch (e) {
+            setErr(String((e as Error).message ?? e))
+            throw e
+          } finally {
+            setBusy(false)
+          }
+        }}
+      />
     </div>
   )
 }

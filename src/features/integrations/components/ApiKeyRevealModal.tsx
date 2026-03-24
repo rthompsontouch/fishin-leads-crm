@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import ModalScrollBackdrop from '../../../components/ModalScrollBackdrop'
 
 export default function ApiKeyRevealModal({
   apiKey,
@@ -59,20 +60,13 @@ export default function ApiKeyRevealModal({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50"
-      role="dialog"
-      aria-modal="true"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose()
-      }}
-      style={{ background: 'rgba(0,0,0,0.45)' }}
-    >
+    <ModalScrollBackdrop onBackdropClose={onClose} zClass="z-50" role="dialog" aria-modal>
       <div
-        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[min(720px,92vw)] rounded-xl border p-5"
+        className="my-4 w-full max-w-[min(720px,100%)] max-h-[min(92dvh,880px)] min-h-0 flex flex-col rounded-xl border shadow-lg overflow-hidden"
         style={{ borderColor: 'var(--color-border)', background: 'var(--color-background)' }}
+        onMouseDown={(e) => e.stopPropagation()}
       >
-        <div className="flex items-start justify-between gap-4 mb-4">
+        <div className="shrink-0 flex items-start justify-between gap-4 p-5 pb-0">
           <div>
             <div className="text-sm opacity-70">Your API Key (copy it now)</div>
             <div className="text-lg font-semibold mt-1">Set up your website form</div>
@@ -86,6 +80,7 @@ export default function ApiKeyRevealModal({
           </button>
         </div>
 
+        <div className="flex-1 min-h-0 overflow-y-auto crm-scrollbar p-5 pt-4 space-y-4">
         <div
           className="rounded-lg border p-4 mb-4"
           style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface-1)' }}
@@ -162,8 +157,9 @@ export default function ApiKeyRevealModal({
             {testResult}
           </div>
         ) : null}
+        </div>
       </div>
-    </div>
+    </ModalScrollBackdrop>
   )
 }
 

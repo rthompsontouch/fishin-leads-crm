@@ -19,6 +19,130 @@ export type ListLeadsParams = {
   uncontactedOnly?: boolean
 }
 
+/** Columns returned by list views / exports (dashboard metrics use `listLeads`). */
+const LEAD_LIST_SELECT = [
+  'id',
+  'first_name',
+  'last_name',
+  'company',
+  'industry',
+  'company_size',
+  'website',
+  'email',
+  'phone',
+  'source',
+  'details',
+  'status',
+  'last_contacted_at',
+  'created_at',
+  'converted_at',
+  'converted_customer_id',
+].join(',')
+
+/** Strip characters that break PostgREST `.or()` / ILIKE filters. */
+function normalizeLeadSearchTerm(raw: string): string {
+  return raw
+    .trim()
+    .replace(/[,()]/g, ' ')
+    .replace(/[%_\\]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function applyLeadListFilters<T extends { is: (...a: unknown[]) => T; or: (...a: unknown[]) => T }>(
+  query: T,
+  opts: { uncontactedOnly: boolean; search?: string },
+): T {
+  let q = query
+  if (opts.uncontactedOnly) {
+    q = q.is('last_contacted_at', null) as T
+  }
+  const term = normalizeLeadSearchTerm(opts.search ?? '')
+  if (term) {
+    const p = `%${term}%`
+    q = q.or(
+      `first_name.ilike.${p},last_name.ilike.${p},company.ilike.${p},email.ilike.${p},phone.ilike.${p},status.ilike.${p},source.ilike.${p}`,
+    ) as T
+  }
+  return q
+}
+
+export type ListLeadsPagedParams = {
+  /** 1-based page index */
+  page: number
+  pageSize: number
+  uncontactedOnly?: boolean
+  /** Server-side search across name, company, email, phone, status, source */
+  search?: string
+}
+
+export type ListLeadsPagedResult = {
+  rows: LeadRow[]
+  total: number
+}
+
+export async function listLeadsPaged(
+  params: ListLeadsPagedParams,
+): Promise<ListLeadsPagedResult> {
+  if (!supabase) {
+    throw new Error('Supabase client not configured')
+  }
+
+  const page = Math.max(1, Math.floor(params.page))
+  const pageSize = Math.max(1, Math.min(100, Math.floor(params.pageSize)))
+  const uncontactedOnly = params.uncontactedOnly ?? false
+  const search = params.search
+  const from = (page - 1) * pageSize
+  const to = from + pageSize - 1
+
+  const filterOpts = { uncontactedOnly, search }
+
+  let countQuery = supabase.from('leads').select('id', { count: 'exact', head: true })
+  countQuery = applyLeadListFilters(countQuery, filterOpts)
+
+  const { count, error: countError } = await countQuery
+  if (countError) throw countError
+  const total = count ?? 0
+
+  let dataQuery = supabase
+    .from('leads')
+    .select(LEAD_LIST_SELECT)
+    .order('created_at', { ascending: false })
+  dataQuery = applyLeadListFilters(dataQuery, filterOpts)
+  dataQuery = dataQuery.range(from, to)
+
+  const { data, error: dataError } = await dataQuery.returns<LeadRow[]>()
+
+  if (dataError) throw dataError
+
+  return { rows: data ?? [], total }
+}
+
+/** All leads matching filters + search (for CSV export). */
+export async function listLeadsForExport(params?: {
+  uncontactedOnly?: boolean
+  search?: string
+}): Promise<LeadRow[]> {
+  if (!supabase) {
+    throw new Error('Supabase client not configured')
+  }
+
+  const uncontactedOnly = params?.uncontactedOnly ?? false
+  const search = params?.search
+
+  let query = supabase
+    .from('leads')
+    .select(LEAD_LIST_SELECT)
+    .order('created_at', { ascending: false })
+
+  query = applyLeadListFilters(query, { uncontactedOnly, search })
+
+  const { data, error } = await query.returns<LeadRow[]>()
+
+  if (error) throw error
+  return data ?? []
+}
+
 async function getUserId() {
   if (!supabase) throw new Error('Supabase client not configured')
   const {
@@ -40,24 +164,7 @@ export async function listLeads(params?: ListLeadsParams) {
 
   let query = supabase
     .from('leads')
-    .select(
-      [
-        'id',
-        'first_name',
-        'last_name',
-        'company',
-        'industry',
-        'company_size',
-        'website',
-        'email',
-        'phone',
-        'source',
-        'details',
-        'status',
-        'last_contacted_at',
-        'created_at',
-      ].join(','),
-    )
+    .select(LEAD_LIST_SELECT)
     .order('created_at', { ascending: false })
 
   if (uncontactedOnly) {

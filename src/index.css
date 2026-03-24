@@ -66,6 +66,26 @@
   }
 }
 
+/* CRM shell colors (sidebar + main app canvas) */
+:root {
+  /* Outer shell / gaps (not the nav links band) */
+  --crm-shell-bg: hsl(222 34% 14%);
+  /* Sidebar: only the middle section behind Dashboard / Leads / … links */
+  --crm-sidebar-links-bg: hsl(222 32% 19%);
+  /* Inactive sidebar row hover (on links band) */
+  --crm-nav-hover: hsl(222 28% 26%);
+  /* Selected nav + main canvas (same light gray) */
+  --crm-nav-active-bg: hsl(220 20% 94%);
+  --crm-nav-active-text: hsl(222 47% 11%);
+  /* Logo strip + account strip only (darker) */
+  --crm-header-bg: hsl(222 38% 10%);
+  --crm-header-button: hsl(222 28% 24%);
+  --crm-main-bg: hsl(220 20% 94%);
+  --crm-content-header-bg: hsl(216 28% 88%);
+  --crm-content-header-border: hsl(214 28% 76%);
+  --crm-content-header-text: hsl(222 47% 11%);
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     --text: #9ca3af;
@@ -79,6 +99,20 @@
     --social-bg: rgba(47, 48, 58, 0.5);
     --shadow:
       rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
+  }
+
+  :root {
+    --crm-shell-bg: hsl(222 34% 14%);
+    --crm-sidebar-links-bg: hsl(222 32% 19%);
+    --crm-nav-hover: hsl(222 28% 26%);
+    --crm-nav-active-bg: hsl(220 20% 94%);
+    --crm-nav-active-text: hsl(222 47% 11%);
+    --crm-header-bg: hsl(222 38% 10%);
+    --crm-header-button: hsl(222 28% 24%);
+    --crm-main-bg: hsl(220 20% 94%);
+    --crm-content-header-bg: hsl(216 28% 88%);
+    --crm-content-header-border: hsl(214 28% 76%);
+    --crm-content-header-text: hsl(222 47% 11%);
   }
 
   /* Keep the CRM Tailwind theme colors in sync with marketing site. */
@@ -207,6 +241,20 @@ code {
   color: inherit;
 }
 
+/* Call / email — dark pills (readable on white cards; matches export / sidebar tone) */
+#root a.crm-contact-link.crm-contact-link--dark {
+  color: #fff !important;
+  background-color: var(--crm-sidebar-links-bg);
+  border: 1px solid rgb(255 255 255 / 0.12);
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 0.12),
+    inset 0 0 0 1px rgb(255 255 255 / 0.06);
+}
+#root a.crm-contact-link.crm-contact-link--dark:hover {
+  background-color: var(--crm-nav-hover);
+  color: #fff !important;
+}
+
 /*
  * Native <select>: closed field follows theme; opened list is often OS-painted as
  * light while still inheriting light page text (dark mode) → white-on-white.
@@ -221,6 +269,87 @@ code {
 #root optgroup {
   background-color: #ffffff;
   color: #0f172a;
+}
+
+/*
+ * OS dark mode sets --color-foreground to light text, but many CRM screens use white
+ * cards. Without a reset, labels/body inherit white text on white panels.
+ */
+#root .crm-light-surface {
+  color: hsl(222 47% 11%);
+}
+
+#root .crm-light-surface select {
+  background-color: #ffffff;
+  color: hsl(222 47% 11%);
+}
+
+#root .crm-light-surface input:not([type='checkbox']):not([type='radio']):not([type='range']),
+#root .crm-light-surface textarea {
+  background-color: #ffffff;
+  color: hsl(222 47% 11%);
+}
+
+#root .crm-light-surface input::placeholder,
+#root .crm-light-surface textarea::placeholder {
+  color: hsl(215 16% 47%);
+}
+
+/* Dashboard stats period: truly transparent on white header (beats #root select theme fill) */
+#root .crm-page-header--white .crm-dashboard-period-field select {
+  background-color: transparent;
+  color: var(--crm-content-header-text);
+}
+
+/* Export stats: same fill as sidebar links band */
+#root .crm-dashboard-export-stats {
+  background-color: var(--crm-sidebar-links-bg);
+  color: #fff;
+  border: none;
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 0.12),
+    inset 0 0 0 1px rgb(255 255 255 / 0.1);
+}
+#root .crm-dashboard-export-stats:hover:not(:disabled) {
+  background-color: var(--crm-nav-hover);
+}
+#root .crm-dashboard-export-stats:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--color-background), 0 0 0 4px var(--color-primary);
+}
+
+/* Main content page header bar */
+#root .crm-page-header {
+  min-height: 4rem;
+  margin-left: -1.5rem;
+  margin-right: -1.5rem;
+  margin-top: -0.25rem;
+  margin-bottom: 1.5rem;
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border-bottom: none;
+  background: var(--crm-content-header-bg);
+}
+
+#root .crm-page-header-title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--crm-content-header-text);
+}
+
+/* White title bar (e.g. dashboard only while iterating on layout) */
+#root .crm-page-header.crm-page-header--white {
+  background: hsl(0 0% 100%);
+}
+
+/* Tighter stack under title (e.g. dashboard) */
+#root .crm-page-header.crm-page-header--compact {
+  margin-bottom: 0.25rem;
 }
 
 /* -------------------------------------------------------------------------- */

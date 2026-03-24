@@ -43,29 +43,38 @@ export default function IntegrationCreateForm({
         })
       })}
     >
-      <label className="flex flex-col gap-1 text-sm">
+      <label
+        className="flex flex-col gap-1 text-sm"
+        style={{ color: 'var(--crm-content-header-text, #0f172a)' }}
+      >
         Integration name
         <input
-          className="rounded-md border px-3 py-2 outline-none"
-          style={{ borderColor: 'var(--color-border)' }}
+          className="rounded-md border-2 px-3 py-2 outline-none bg-white"
+          style={{ borderColor: 'hsl(215 22% 72%)', color: 'var(--crm-content-header-text, #0f172a)' }}
           {...form.register('name')}
         />
       </label>
 
-      <label className="flex flex-col gap-1 text-sm">
+      <label
+        className="flex flex-col gap-1 text-sm"
+        style={{ color: 'var(--crm-content-header-text, #0f172a)' }}
+      >
         Source label
         <input
-          className="rounded-md border px-3 py-2 outline-none"
-          style={{ borderColor: 'var(--color-border)' }}
+          className="rounded-md border-2 px-3 py-2 outline-none bg-white"
+          style={{ borderColor: 'hsl(215 22% 72%)', color: 'var(--crm-content-header-text, #0f172a)' }}
           {...form.register('source_label')}
         />
       </label>
 
-      <label className="flex flex-col gap-1 text-sm md:col-span-2">
+      <label
+        className="flex flex-col gap-1 text-sm md:col-span-2"
+        style={{ color: 'var(--crm-content-header-text, #0f172a)' }}
+      >
         Default lead status
         <select
-          className="rounded-md border px-3 py-2 outline-none"
-          style={{ borderColor: 'var(--color-border)' }}
+          className="rounded-md border-2 px-3 py-2 outline-none bg-white"
+          style={{ borderColor: 'hsl(215 22% 72%)', color: 'var(--crm-content-header-text, #0f172a)' }}
           {...form.register('default_status')}
         >
           {statusValues.map((s) => (
@@ -83,7 +92,10 @@ export default function IntegrationCreateForm({
           className="h-4 w-4"
           {...form.register('enabled')}
         />
-        <label htmlFor="enabled" className="text-sm opacity-80 cursor-pointer">
+        <label
+          htmlFor="enabled"
+          className="text-sm cursor-pointer text-slate-700"
+        >
           Enabled
         </label>
       </div>

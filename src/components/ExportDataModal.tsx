@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import ModalScrollBackdrop from './ModalScrollBackdrop'
 import type {
   CsvDelimiterPreset,
   ExportFormat,
@@ -131,18 +132,15 @@ export default function ExportDataModal({
   const exportLabel = format === 'json' ? 'Download JSON' : 'Download CSV'
 
   return (
-    <div
-      className="fixed inset-0 z-[70] flex items-center justify-center p-4"
+    <ModalScrollBackdrop
+      onBackdropClose={onClose}
+      zClass="z-[70]"
       role="dialog"
-      aria-modal="true"
+      aria-modal
       aria-labelledby="export-modal-title"
-      style={{ background: 'rgba(0,0,0,0.45)' }}
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose()
-      }}
     >
       <div
-        className="w-full max-w-lg max-h-[min(90vh,720px)] rounded-xl border shadow-lg flex flex-col"
+        className="my-4 w-full max-w-lg max-h-[min(92dvh,720px)] min-h-0 rounded-xl border shadow-lg flex flex-col"
         style={{
           borderColor: 'var(--color-border)',
           background: 'var(--color-background)',
@@ -312,6 +310,6 @@ export default function ExportDataModal({
           </button>
         </div>
       </div>
-    </div>
+    </ModalScrollBackdrop>
   )
 }

@@ -1,10 +1,52 @@
 import { Link } from 'react-router-dom'
+import { useMemo, useState } from 'react'
+import { Calendar, Download } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
-import { listCustomers } from '../features/customers/api/customersApi'
+import DashboardCharts from '../features/dashboard/components/DashboardCharts'
+import {
+  listCustomers,
+  listServiceEntriesForOwner,
+} from '../features/customers/api/customersApi'
 import { listLeads } from '../features/leads/api/leadsApi'
 import { listUpcomingJobs } from '../features/jobs/api/jobsApi'
+import {
+  listQuotesForDashboard,
+  type DashboardQuoteRow,
+} from '../features/quotes/api/quotesApi'
+import {
+  createdAtInRange,
+  DASHBOARD_PERIOD_OPTIONS,
+  type DashboardStatsPeriod,
+  eventInPeriod,
+  formatLocalYmd,
+  getPeriodRange,
+  getPreviousPeriodRange,
+  scheduledDateInRange,
+} from '../lib/dashboardPeriods'
+
+function quoteOutcomeInPeriod(
+  q: DashboardQuoteRow,
+  range: { start: Date; end: Date } | null,
+): 'won' | 'lost' | null {
+  if (!range) {
+    if (q.status === 'Won') return 'won'
+    if (q.status === 'Lost') return 'lost'
+    return null
+  }
+  if (q.status === 'Won') {
+    const ts = q.won_at ?? q.updated_at
+    return eventInPeriod(ts, range) ? 'won' : null
+  }
+  if (q.status === 'Lost') {
+    const ts = q.lost_at ?? q.updated_at
+    return eventInPeriod(ts, range) ? 'lost' : null
+  }
+  return null
+}
 
 export default function DashboardPage() {
+  const [statsPeriod, setStatsPeriod] = useState<DashboardStatsPeriod>('week')
+
   const {
     data: leads,
     isPending: leadsPending,
@@ -32,43 +74,181 @@ export default function DashboardPage() {
     queryFn: () => listUpcomingJobs(),
   })
 
-  const totalLeads = leads?.length ?? 0
-  const uncontactedLeads =
-    leads?.filter((l) => l.last_contacted_at === null).length ?? 0
-  const totalCustomers = customers?.length ?? 0
+  const {
+    data: quotes,
+    isPending: quotesPending,
+    error: quotesError,
+  } = useQuery({
+    queryKey: ['quotes-dashboard'],
+    queryFn: () => listQuotesForDashboard(),
+  })
+
+  const {
+    data: serviceEntries,
+    isPending: servicesPending,
+    error: servicesError,
+  } = useQuery({
+    queryKey: ['service-entries-dashboard'],
+    queryFn: () => listServiceEntriesForOwner(),
+  })
+
+  const range = useMemo(() => getPeriodRange(statsPeriod), [statsPeriod])
+  const prevRange = useMemo(() => getPreviousPeriodRange(statsPeriod), [statsPeriod])
+
+  const chartMetrics = useMemo(() => {
+    const L = leads ?? []
+    const Q = quotes ?? []
+    const S = serviceEntries ?? []
+
+    const conversionsThis = L.filter(
+      (l) => l.converted_at && eventInPeriod(l.converted_at, range),
+    ).length
+    const conversionsPrev = prevRange
+      ? L.filter((l) => l.converted_at && eventInPeriod(l.converted_at, prevRange)).length
+      : 0
+
+    const newLeadsThis = L.filter((l) => createdAtInRange(l.created_at, range)).length
+    const newLeadsPrev = prevRange
+      ? L.filter((l) => createdAtInRange(l.created_at, prevRange)).length
+      : 0
+
+    let quotesWon = 0
+    let quotesLost = 0
+    for (const q of Q) {
+      const o = quoteOutcomeInPeriod(q, range)
+      if (o === 'won') quotesWon += 1
+      if (o === 'lost') quotesLost += 1
+    }
+
+    const servicesThis = S.filter((s) => eventInPeriod(s.created_at, range)).length
+    const servicesPrev = prevRange
+      ? S.filter((s) => eventInPeriod(s.created_at, prevRange)).length
+      : 0
+
+    return {
+      conversionsThis,
+      conversionsPrev,
+      newLeadsThis,
+      newLeadsPrev,
+      quotesWon,
+      quotesLost,
+      servicesThis,
+      servicesPrev,
+    }
+  }, [leads, quotes, serviceEntries, range, prevRange])
+
+  const filteredLeads = useMemo(
+    () => (leads ?? []).filter((l) => createdAtInRange(l.created_at, range)),
+    [leads, range],
+  )
+
+  const filteredCustomers = useMemo(
+    () => (customers ?? []).filter((c) => createdAtInRange(c.created_at, range)),
+    [customers, range],
+  )
+
+  const filteredJobs = useMemo(
+    () => (upcomingJobs ?? []).filter((j) => scheduledDateInRange(j.scheduled_date, range)),
+    [upcomingJobs, range],
+  )
+
+  const totalLeads = filteredLeads.length
+  const uncontactedLeads = filteredLeads.filter((l) => l.last_contacted_at === null).length
+  const totalCustomers = filteredCustomers.length
   const nowIso = new Date().toISOString()
-  const dueReminders =
-    upcomingJobs?.filter(
-      (j) =>
-        j.reminder_at &&
-        !j.reminder_sent_at &&
-        new Date(j.reminder_at).toISOString() <= nowIso,
-    ).length ?? 0
+  const dueReminders = filteredJobs.filter(
+    (j) =>
+      j.reminder_at &&
+      !j.reminder_sent_at &&
+      new Date(j.reminder_at).toISOString() <= nowIso,
+  ).length
 
   const loading = leadsPending || customersPending || jobsPending
   const error = leadsError || customersError || jobsError
+  const chartsLoading = leadsPending || quotesPending || servicesPending
 
   const fmt = (n: number) => (loading ? '…' : error ? '—' : String(n))
 
-  const primaryBtn =
-    'rounded-md px-3 py-2 text-sm font-semibold text-white cursor-pointer transition-colors duration-150 bg-[color:var(--color-primary)] hover:bg-[color:var(--color-primary-dark)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-primary)]'
-  const outlineBtn =
-    'rounded-md px-3 py-2 text-sm font-semibold border cursor-pointer transition-colors duration-150 border-[color:var(--color-border)] bg-transparent text-[color:var(--color-foreground)] hover:bg-[color:var(--color-surface-2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-primary)]'
+  const periodLabel =
+    DASHBOARD_PERIOD_OPTIONS.find((o) => o.value === statsPeriod)?.label ?? statsPeriod
+
+  const exportStats = () => {
+    const lines = [
+      ['Period', periodLabel],
+      ['Total leads', String(totalLeads)],
+      ['Uncontacted leads', String(uncontactedLeads)],
+      ['Total customers', String(totalCustomers)],
+      ['Upcoming jobs (in period)', String(filteredJobs.length)],
+      ['Reminders due (in period)', String(dueReminders)],
+      ['Conversions (period)', String(chartMetrics.conversionsThis)],
+      ['Conversions (prior period)', String(chartMetrics.conversionsPrev)],
+      ['New leads (period)', String(chartMetrics.newLeadsThis)],
+      ['New leads (prior period)', String(chartMetrics.newLeadsPrev)],
+      ['Quotes won (period)', String(chartMetrics.quotesWon)],
+      ['Quotes lost (period)', String(chartMetrics.quotesLost)],
+      ['Services logged (period)', String(chartMetrics.servicesThis)],
+      ['Services logged (prior period)', String(chartMetrics.servicesPrev)],
+      ['Exported at', new Date().toISOString()],
+    ]
+    const csv = lines.map((row) => row.map((cell) => `"${cell.replace(/"/g, '""')}"`).join(',')).join('\r\n')
+    const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `dashboard-stats-${statsPeriod}-${formatLocalYmd(new Date())}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const periodPickerClass =
+    'min-w-[9.5rem] flex-1 rounded-sm py-1.5 pl-1 pr-8 text-sm font-semibold cursor-pointer outline-none ' +
+    'border-0 bg-transparent transition-opacity duration-150 appearance-none bg-[length:1rem] bg-[right_0.35rem_center] bg-no-repeat ' +
+    'focus-visible:ring-2 focus-visible:ring-[color:var(--color-primary)] focus-visible:ring-offset-2 ' +
+    'hover:opacity-90'
+
+  const exportBtnClass =
+    'crm-dashboard-export-stats inline-flex items-center justify-center gap-2 rounded-sm px-3 py-2 text-sm font-semibold cursor-pointer'
 
   return (
-    <div className="flex flex-col gap-6 max-md:pt-2">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-semibold">Dashboard</h1>
-          <p className="text-sm opacity-80 mt-1">Quick overview of your CRM.</p>
-        </div>
-        <div className="flex gap-2">
-          <Link to="/leads/new" className={primaryBtn}>
-            Add Lead
-          </Link>
-          <Link to="/customers/new" className={outlineBtn}>
-            Add Customer
-          </Link>
+    <div className="flex flex-col gap-4 max-md:pt-2">
+      <div className="crm-page-header crm-page-header--white crm-page-header--compact">
+        <h1 className="crm-page-header-title">Dashboard</h1>
+        <div className="flex flex-wrap items-center gap-2">
+          <div
+            className="crm-dashboard-period-field inline-flex items-center gap-2 rounded-sm border-2 px-2 py-0.5 transition-opacity hover:opacity-95"
+            style={{
+              borderColor: 'var(--crm-content-header-text)',
+              backgroundColor: 'transparent',
+            }}
+          >
+            <Calendar
+              size={18}
+              className="shrink-0 pointer-events-none"
+              style={{ color: 'var(--crm-content-header-text)' }}
+              aria-hidden
+            />
+            <select
+              id="dashboard-stats-period"
+              aria-label="Stats period"
+              value={statsPeriod}
+              onChange={(e) => setStatsPeriod(e.target.value as DashboardStatsPeriod)}
+              className={periodPickerClass}
+              style={{
+                color: 'var(--crm-content-header-text)',
+                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%230f172a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`,
+              }}
+            >
+              {DASHBOARD_PERIOD_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <button type="button" className={exportBtnClass} onClick={exportStats}>
+            Export stats
+            <Download size={18} className="shrink-0 opacity-95" aria-hidden />
+          </button>
         </div>
       </div>
 
@@ -81,58 +261,85 @@ export default function DashboardPage() {
         </div>
       ) : null}
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Link
-          to="/leads"
-          className="rounded-xl border p-4 transition-colors hover:bg-[color:var(--color-surface-1)] outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-primary)]"
-          style={{ borderColor: 'var(--color-border)' }}
+      <div className="flex flex-col gap-1">
+        <p
+          className="text-xs leading-snug m-0"
+          style={{ color: 'var(--crm-content-header-text)' }}
         >
-          <div className="text-sm opacity-80">Total leads</div>
-          <div className="text-2xl font-bold mt-2">{fmt(totalLeads)}</div>
-          <div className="text-xs opacity-60 mt-2">View leads →</div>
-        </Link>
-        <Link
-          to="/leads?filter=uncontacted"
-          className="rounded-xl border p-4 transition-colors hover:bg-[color:var(--color-surface-1)] outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-primary)]"
-          style={{ borderColor: 'var(--color-border)' }}
-        >
-          <div className="text-sm opacity-80">Uncontacted leads</div>
-          <div className="text-2xl font-bold mt-2">{fmt(uncontactedLeads)}</div>
-          <div className="text-xs opacity-60 mt-2">Review pipeline →</div>
-        </Link>
-        <Link
-          to="/customers"
-          className="rounded-xl border p-4 transition-colors hover:bg-[color:var(--color-surface-1)] outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--color-primary)]"
-          style={{ borderColor: 'var(--color-border)' }}
-        >
-          <div className="text-sm opacity-80">Total customers</div>
-          <div className="text-2xl font-bold mt-2">{fmt(totalCustomers)}</div>
-          <div className="text-xs opacity-60 mt-2">View customers →</div>
-        </Link>
-      </div>
+          Metrics below use <span className="font-semibold">{periodLabel}</span>
+          {statsPeriod === 'all'
+            ? ' (all records).'
+            : ' (by created date for leads & customers; scheduled date for upcoming jobs).'}
+        </p>
 
-      <div
-        className="rounded-xl border p-5"
-        style={{ borderColor: 'var(--color-border)' }}
-      >
-        <div className="text-sm font-semibold">Shortcuts</div>
-        <div className="mt-3 flex flex-wrap gap-2">
-          <Link to="/integrations/leads" className={outlineBtn}>
-            Integrations
-          </Link>
-          <Link to="/settings" className={outlineBtn}>
-            Settings
-          </Link>
+        <div
+          className="rounded-xl overflow-hidden shadow-md ring-1 ring-white/10"
+          style={{
+            background:
+              'linear-gradient(160deg, var(--crm-sidebar-links-bg) 0%, var(--crm-shell-bg) 100%)',
+          }}
+        >
+          <div className="grid grid-cols-1 md:grid-cols-3">
+            <Link
+              to="/leads"
+              className="block px-6 py-5 md:py-6 text-white no-underline outline-none transition-colors duration-150 hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[color:var(--color-primary-light)]"
+            >
+              <div className="text-sm font-medium text-white/75">Total leads</div>
+              <div className="text-2xl font-bold mt-2 tabular-nums text-white">{fmt(totalLeads)}</div>
+              <div className="text-xs mt-2 text-white/55">View leads →</div>
+            </Link>
+            <Link
+              to="/leads?filter=uncontacted"
+              className="block px-6 py-5 md:py-6 text-white no-underline outline-none transition-colors duration-150 hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[color:var(--color-primary-light)]"
+            >
+              <div className="text-sm font-medium text-white/75">Uncontacted leads</div>
+              <div className="text-2xl font-bold mt-2 tabular-nums text-white">{fmt(uncontactedLeads)}</div>
+              <div className="text-xs mt-2 text-white/55">Review pipeline →</div>
+            </Link>
+            <Link
+              to="/customers"
+              className="block px-6 py-5 md:py-6 text-white no-underline outline-none transition-colors duration-150 hover:bg-white/10 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[color:var(--color-primary-light)]"
+            >
+              <div className="text-sm font-medium text-white/75">Total customers</div>
+              <div className="text-2xl font-bold mt-2 tabular-nums text-white">{fmt(totalCustomers)}</div>
+              <div className="text-xs mt-2 text-white/55">View customers →</div>
+            </Link>
+          </div>
         </div>
       </div>
 
-      <div
-        className="rounded-xl border p-5"
-        style={{ borderColor: 'var(--color-border)' }}
-      >
+      {quotesError || servicesError ? (
+        <div className="text-xs" style={{ color: 'var(--color-danger)' }}>
+          {quotesError ? `Charts (quotes): ${String((quotesError as Error).message)}. ` : null}
+          {servicesError ? `Charts (services): ${String((servicesError as Error).message)}.` : null}
+        </div>
+      ) : null}
+
+      <DashboardCharts
+        period={statsPeriod}
+        loading={chartsLoading}
+        conversionsThis={chartMetrics.conversionsThis}
+        conversionsPrev={chartMetrics.conversionsPrev}
+        newLeadsThis={chartMetrics.newLeadsThis}
+        newLeadsPrev={chartMetrics.newLeadsPrev}
+        quotesWon={chartMetrics.quotesWon}
+        quotesLost={chartMetrics.quotesLost}
+        servicesThis={chartMetrics.servicesThis}
+        servicesPrev={chartMetrics.servicesPrev}
+      />
+
+      <div className="rounded-xl bg-white p-5 shadow-sm">
         <div className="flex items-center justify-between gap-3 flex-wrap">
-          <div className="text-sm font-semibold">Upcoming jobs</div>
-          <div className="text-xs opacity-70">
+          <div
+            className="text-sm font-semibold"
+            style={{ color: 'var(--crm-content-header-text)' }}
+          >
+            Upcoming jobs
+          </div>
+          <div
+            className="text-xs"
+            style={{ color: 'var(--crm-content-header-text)', opacity: 0.75 }}
+          >
             {jobsPending ? 'Loading…' : dueReminders > 0 ? `${dueReminders} reminder(s) due` : 'No reminders due'}
           </div>
         </div>
@@ -142,32 +349,46 @@ export default function DashboardPage() {
             Failed to load jobs: {String((jobsError as Error).message)}
           </div>
         ) : jobsPending ? (
-          <div className="text-sm opacity-80 mt-3">Loading jobs…</div>
-        ) : upcomingJobs && upcomingJobs.length > 0 ? (
+          <div
+            className="text-sm mt-3"
+            style={{ color: 'var(--crm-content-header-text)', opacity: 0.8 }}
+          >
+            Loading jobs…
+          </div>
+        ) : filteredJobs.length > 0 ? (
           <div className="mt-3 flex flex-col gap-2">
-            {upcomingJobs.slice(0, 7).map((j) => (
+            {filteredJobs.slice(0, 7).map((j) => (
               <Link
                 key={j.id}
                 to={`/jobs/${j.id}`}
-                className="rounded-md border px-3 py-2 text-sm flex items-start justify-between gap-3 hover:bg-[color:var(--color-surface-1)]"
-                style={{ borderColor: 'var(--color-border)', textDecoration: 'none' }}
+                className="rounded-md px-3 py-2.5 text-sm flex items-start justify-between gap-3 no-underline outline-none transition-colors duration-150 hover:brightness-110 focus-visible:ring-2 focus-visible:ring-[color:var(--color-primary)] focus-visible:ring-offset-2 shadow-sm ring-1 ring-white/10"
+                style={{
+                  background:
+                    'linear-gradient(160deg, var(--crm-sidebar-links-bg) 0%, var(--crm-shell-bg) 100%)',
+                  color: '#fff',
+                }}
               >
-                <div className="min-w-0">
+                <div className="min-w-0 text-white">
                   <div className="font-semibold">Job • {j.scheduled_date}</div>
-                  <div className="text-xs opacity-70">
+                  <div className="text-xs text-white/70">
                     {j.is_recurring
                       ? `Recurring (${j.recurrence_unit ?? 'weekly'})`
                       : 'One-time'}
                   </div>
                 </div>
-                <div className="text-xs opacity-80 whitespace-nowrap">
-                  {j.reminder_at && !j.reminder_sent_at ? 'Reminder due' : ' '}
+                <div className="text-xs text-white/80 whitespace-nowrap">
+                  {j.reminder_at && !j.reminder_sent_at ? 'Reminder due' : '\u00a0'}
                 </div>
               </Link>
             ))}
           </div>
         ) : (
-          <div className="text-sm opacity-80 mt-3">No upcoming jobs.</div>
+          <div
+            className="text-sm mt-3"
+            style={{ color: 'var(--crm-content-header-text)', opacity: 0.8 }}
+          >
+            No upcoming jobs in this period.
+          </div>
         )}
       </div>
     </div>

@@ -22,17 +22,8 @@ export default function LeadCreatePage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <div className="text-xs opacity-70">
-          <Link to="/leads">Leads</Link> <span className="opacity-60">/</span>{' '}
-          <span className="opacity-95">New lead</span>
-        </div>
-        <h1 className="text-2xl font-semibold mt-1">Add Lead</h1>
-        <p className="text-sm opacity-80 mt-2">
-          Create a new lead record. Notes you add later will update
-          <span style={{ fontWeight: 600 }}> Uncontacted</span> status
-          automatically.
-        </p>
+      <div className="crm-page-header">
+        <h1 className="crm-page-header-title">Add Lead</h1>
       </div>
 
       <div className="rounded-xl border p-6" style={{ borderColor: 'var(--color-border)' }}>
