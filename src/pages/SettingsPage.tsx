@@ -65,6 +65,60 @@ const changePasswordSchema = z
     path: ['confirm_password'],
   })
 
+type AccountTier = 'Freemium' | 'Basic' | 'Advanced' | 'Enterprise'
+
+const TIER_ORDER: AccountTier[] = ['Freemium', 'Basic', 'Advanced', 'Enterprise']
+
+function nextTierFor(current: AccountTier): AccountTier | null {
+  const idx = TIER_ORDER.indexOf(current)
+  if (idx < 0 || idx >= TIER_ORDER.length - 1) return null
+  return TIER_ORDER[idx + 1] ?? null
+}
+
+const TIER_PLANS: Array<{
+  key: Exclude<AccountTier, 'Freemium'>
+  price: string
+  subtitle: string
+  features: string[]
+}> = [
+  {
+    key: 'Basic',
+    price: '$24.99 / month',
+    subtitle: 'Core CRM to run daily operations',
+    features: [
+      'Everything currently built in the app so far',
+      'Lead, customer, quote, job, and notes workflow',
+      'Foundational reporting and day-to-day management',
+    ],
+  },
+  {
+    key: 'Advanced',
+    price: '$64.99 / month',
+    subtitle: 'Scale your team and automate sales operations',
+    features: [
+      'Everything in Basic',
+      'Up to 10 users + roles and permissions',
+      'Basic automation workflows',
+      'Higher limits on notes and service history',
+      'Stripe Connect payments in-app',
+      'Calendar booking and rescheduling',
+    ],
+  },
+  {
+    key: 'Enterprise',
+    price: 'Starts at $500 / month + $10 per user',
+    subtitle: 'Enterprise controls, unlimited scale, advanced automation',
+    features: [
+      'Everything in Advanced',
+      'Unlimited users, notes, and service history',
+      'Advanced automation workflows',
+      'Branding removal + advanced user controls',
+      'Clock-in / clock-out functionality',
+      'Advanced lead pipeline delegation and lead splitting',
+    ],
+  },
+]
+
 export default function SettingsPage() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -78,6 +132,7 @@ export default function SettingsPage() {
   const [reminderDispatchResult, setReminderDispatchResult] = useState<string | null>(null)
   const [emailModalOpen, setEmailModalOpen] = useState(false)
   const [passwordModalOpen, setPasswordModalOpen] = useState(false)
+  const [upgradeModalOpen, setUpgradeModalOpen] = useState(false)
   const vapidPublicKey = import.meta.env.VITE_VAPID_PUBLIC_KEY as string | undefined
 
   useEffect(() => {
@@ -315,6 +370,9 @@ export default function SettingsPage() {
   const sectionAnchorClass =
     'font-semibold text-[color:var(--color-primary)] underline-offset-2 hover:underline'
 
+  const currentTier = (profile?.tier ?? 'Freemium') as AccountTier
+  const nextTier = nextTierFor(currentTier)
+
   return (
     <div className="crm-light-surface flex flex-col gap-6 max-w-3xl w-full">
       <div className="crm-page-header settings-page-header">
@@ -441,15 +499,33 @@ export default function SettingsPage() {
                 <FormFieldError message={accountForm.formState.errors.company_name?.message} />
               </label>
 
-              <label className="flex flex-col gap-1 text-sm font-medium md:col-span-2" style={fieldLabelStyle}>
-                Tier
-                <input
-                  disabled
-                  value={profile?.tier ?? 'Freemium'}
-                  className={`${fieldInputClass} opacity-85 disabled:cursor-not-allowed bg-slate-50`}
-                  style={fieldInputStyle}
-                />
-              </label>
+              <div className="md:col-span-2 rounded-lg border-2 bg-slate-50 p-3 sm:p-4" style={insetBorderStyle}>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="min-w-0">
+                    <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Tier</div>
+                    <div className="mt-1 text-base font-semibold" style={{ color: 'var(--crm-content-header-text)' }}>
+                      {currentTier}
+                    </div>
+                  </div>
+                  {nextTier ? (
+                    <button
+                      type="button"
+                      className="inline-flex items-center justify-center rounded-md border-2 px-4 py-2 text-sm font-semibold cursor-pointer transition-colors duration-150 bg-white hover:bg-[color:var(--color-primary)] hover:text-white"
+                      style={{
+                        color: 'var(--color-primary)',
+                        borderColor: 'color-mix(in srgb, var(--color-primary) 55%, hsl(215 22% 72%))',
+                      }}
+                      onClick={() => setUpgradeModalOpen(true)}
+                    >
+                      Upgrade to {nextTier}
+                    </button>
+                  ) : (
+                    <span className="text-xs font-semibold text-emerald-700">
+                      You are on the highest plan
+                    </span>
+                  )}
+                </div>
+              </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:col-span-2">
                 <label className="flex flex-col gap-1 text-sm font-medium" style={fieldLabelStyle}>
@@ -739,6 +815,81 @@ export default function SettingsPage() {
           </div>
         </div>
       </div>
+
+      <CrmModal
+        open={upgradeModalOpen}
+        title="Upgrade your plan"
+        wide
+        onClose={() => setUpgradeModalOpen(false)}
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-slate-600 m-0">
+            Pick the plan that matches your team size and workflow needs. Your current tier is{' '}
+            <span className="font-semibold" style={{ color: 'var(--crm-content-header-text)' }}>
+              {currentTier}
+            </span>
+            .
+          </p>
+          <div className="grid grid-cols-1 gap-3">
+            {TIER_PLANS.map((plan) => {
+              const isCurrent = plan.key === currentTier
+              const isRecommended = nextTier === plan.key
+              return (
+                <div
+                  key={plan.key}
+                  className="rounded-xl border-2 bg-white p-4"
+                  style={{
+                    borderColor: isRecommended
+                      ? 'color-mix(in srgb, var(--color-primary) 55%, hsl(215 22% 72%))'
+                      : 'hsl(215 22% 82%)',
+                  }}
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                      <div className="text-base font-semibold" style={{ color: 'var(--crm-content-header-text)' }}>
+                        {plan.key}
+                      </div>
+                      <div className="text-xs text-slate-600 mt-0.5">{plan.subtitle}</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm font-bold" style={{ color: 'var(--crm-content-header-text)' }}>
+                        {plan.price}
+                      </div>
+                      {isCurrent ? (
+                        <div className="text-xs font-semibold text-emerald-700 mt-1">Current plan</div>
+                      ) : isRecommended ? (
+                        <div className="text-xs font-semibold mt-1" style={{ color: 'var(--color-primary)' }}>
+                          Recommended next step
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                  <ul className="mt-3 mb-0 pl-5 text-xs text-slate-700 space-y-1.5">
+                    {plan.features.map((feature) => (
+                      <li key={feature}>{feature}</li>
+                    ))}
+                  </ul>
+                </div>
+              )
+            })}
+          </div>
+          <div className="flex flex-wrap justify-end gap-2 pt-1">
+            <button
+              type="button"
+              className="crm-cancel-btn rounded-md px-4 py-2 text-sm font-semibold cursor-pointer"
+              onClick={() => setUpgradeModalOpen(false)}
+            >
+              Close
+            </button>
+            <a
+              href="mailto:sales@fishinleads.com?subject=Upgrade%20my%20Fishin%20Leads%20plan"
+              className="inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-semibold text-white no-underline cursor-pointer transition-colors duration-150 bg-[color:var(--color-primary)] hover:bg-[color:var(--color-primary-dark)]"
+            >
+              Contact sales
+            </a>
+          </div>
+        </div>
+      </CrmModal>
 
       <CrmModal
         open={emailModalOpen}

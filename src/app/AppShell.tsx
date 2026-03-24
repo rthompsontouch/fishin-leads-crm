@@ -2,6 +2,8 @@ import { Link, Outlet, useLocation } from 'react-router-dom'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getCompanyLogoPublicUrl, getMyProfile } from '../features/account/api/accountApi'
+import { listLeadsPaged } from '../features/leads/api/leadsApi'
+import { listUpcomingJobs } from '../features/jobs/api/jobsApi'
 import type { ComponentType } from 'react'
 import {
   Blocks,
@@ -212,8 +214,11 @@ export default function AppShell() {
   }, [isCollapsed])
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
+  const notificationsRef = useRef<HTMLDivElement | null>(null)
   useEffect(() => {
     setIsMobileMenuOpen(false)
+    setIsNotificationsOpen(false)
   }, [location.pathname])
 
   useEffect(() => {
@@ -225,10 +230,54 @@ export default function AppShell() {
     }
   }, [isMobileMenuOpen])
 
+  useEffect(() => {
+    if (!isNotificationsOpen) return
+    function handleClickOutside(event: MouseEvent) {
+      const target = event.target as Node | null
+      if (!target) return
+      if (!notificationsRef.current?.contains(target)) {
+        setIsNotificationsOpen(false)
+      }
+    }
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key === 'Escape') setIsNotificationsOpen(false)
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    document.addEventListener('keydown', handleEscape)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('keydown', handleEscape)
+    }
+  }, [isNotificationsOpen])
+
   const { data: profile, isPending: isProfilePending } = useQuery({
     queryKey: ['my-profile'],
     queryFn: () => getMyProfile(),
   })
+
+  const { data: notificationData, isPending: notificationsPending } = useQuery({
+    queryKey: ['mobile-notifications-panel'],
+    queryFn: async () => {
+      const [leadsPage, jobs] = await Promise.all([
+        listLeadsPaged({ page: 1, pageSize: 6 }),
+        listUpcomingJobs(),
+      ])
+      return { leads: leadsPage.rows, jobs: jobs.slice(0, 6) }
+    },
+    refetchInterval: 60_000,
+  })
+
+  const nowTs = Date.now()
+  const recentLeads = (notificationData?.leads ?? []).slice(0, 4)
+  const upcomingJobs = (notificationData?.jobs ?? []).slice(0, 4)
+  const dueReminderCount = upcomingJobs.filter((job) => {
+    if (!job.reminder_at || job.reminder_sent_at) return false
+    return new Date(job.reminder_at).getTime() <= nowTs
+  }).length
+  const freshLeadCount = recentLeads.filter(
+    (lead) => nowTs - new Date(lead.created_at).getTime() <= 24 * 60 * 60 * 1000,
+  ).length
+  const notificationBadgeCount = freshLeadCount + dueReminderCount
 
   const companyLogoUrl = useMemo(
     () => getCompanyLogoPublicUrl(profile?.company_logo_path),
@@ -584,16 +633,83 @@ export default function AppShell() {
               <SidebarBrandMark compactLeft mobileHeader />
             </div>
           </Link>
-          <div className="flex items-center gap-2 shrink-0">
-            <Link
-              to="/settings#settings-security"
+          <div ref={notificationsRef} className="relative flex items-center gap-2 shrink-0">
+            <button
+              type="button"
               className={`${shellMobileHeaderIconButtonClass} shadow-sm`}
               style={{ background: 'color-mix(in srgb, var(--color-background) 55%, transparent)' }}
               aria-label="Notifications"
               title="Notifications"
+              aria-expanded={isNotificationsOpen}
+              onClick={() => setIsNotificationsOpen((v) => !v)}
             >
               <Bell size={24} className="shrink-0 opacity-95" strokeWidth={2.1} />
-            </Link>
+              {notificationBadgeCount > 0 ? (
+                <span
+                  className="absolute -right-0.5 -top-0.5 inline-flex min-h-5 min-w-5 items-center justify-center rounded-full px-1 text-[11px] font-bold leading-none text-white"
+                  style={{ background: 'var(--color-danger)' }}
+                  aria-label={`${notificationBadgeCount} new notifications`}
+                >
+                  {notificationBadgeCount > 9 ? '9+' : notificationBadgeCount}
+                </span>
+              ) : null}
+            </button>
+            {isNotificationsOpen ? (
+              <div
+                className="absolute right-0 top-[calc(100%+0.45rem)] z-[70] w-[min(calc(100vw-1rem),22rem)] rounded-xl border bg-white p-3 shadow-xl"
+                style={{ borderColor: 'var(--color-border)', color: 'var(--crm-content-header-text)' }}
+              >
+                <div className="flex items-center justify-between gap-2 pb-2">
+                  <div className="text-sm font-semibold">Notifications</div>
+                  {(notificationBadgeCount > 0 || notificationsPending) && (
+                    <div className="text-xs text-slate-500">
+                      {notificationsPending ? 'Refreshing...' : `${notificationBadgeCount} new`}
+                    </div>
+                  )}
+                </div>
+                <div className="max-h-[55dvh] space-y-2 overflow-y-auto pr-1 crm-scrollbar">
+                  {recentLeads.map((lead) => (
+                    <Link
+                      key={`lead-${lead.id}`}
+                      to={`/leads/${lead.id}`}
+                      className="block rounded-lg border px-3 py-2.5 text-sm no-underline transition-colors hover:bg-slate-50"
+                      style={{ borderColor: 'hsl(215 20% 88%)', color: 'inherit' }}
+                      onClick={() => setIsNotificationsOpen(false)}
+                    >
+                      <div className="font-semibold">Incoming lead</div>
+                      <div className="text-xs text-slate-600 truncate">
+                        {[lead.first_name, lead.last_name].filter(Boolean).join(' ') ||
+                          lead.company ||
+                          'New lead'}
+                      </div>
+                    </Link>
+                  ))}
+                  {upcomingJobs.map((job) => (
+                    <Link
+                      key={`job-${job.id}`}
+                      to={`/jobs/${job.id}`}
+                      className="block rounded-lg border px-3 py-2.5 text-sm no-underline transition-colors hover:bg-slate-50"
+                      style={{ borderColor: 'hsl(215 20% 88%)', color: 'inherit' }}
+                      onClick={() => setIsNotificationsOpen(false)}
+                    >
+                      <div className="font-semibold">
+                        {job.reminder_at && !job.reminder_sent_at && new Date(job.reminder_at).getTime() <= nowTs
+                          ? 'Job reminder due'
+                          : 'Upcoming job'}
+                      </div>
+                      <div className="text-xs text-slate-600 truncate">
+                        Scheduled for {job.scheduled_date}
+                      </div>
+                    </Link>
+                  ))}
+                  {!notificationsPending && recentLeads.length === 0 && upcomingJobs.length === 0 ? (
+                    <div className="rounded-lg border border-slate-200 px-3 py-2.5 text-sm text-slate-600">
+                      No new notifications right now.
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
             <Link
               to="/settings"
               className={`${shellMobileHeaderIconButtonClass} shadow-sm`}
