@@ -510,9 +510,8 @@ export default function SettingsPage() {
                   {nextTier ? (
                     <button
                       type="button"
-                      className="inline-flex items-center justify-center rounded-md border-2 px-4 py-2 text-sm font-semibold cursor-pointer transition-colors duration-150 bg-white hover:bg-[color:var(--color-primary)] hover:text-white"
+                      className="inline-flex items-center justify-center rounded-md border-2 px-4 py-2 text-sm font-semibold cursor-pointer transition-colors duration-150 bg-white text-[color:var(--color-primary)] hover:bg-[color:var(--color-primary)] hover:text-white"
                       style={{
-                        color: 'var(--color-primary)',
                         borderColor: 'color-mix(in srgb, var(--color-primary) 55%, hsl(215 22% 72%))',
                       }}
                       onClick={() => setUpgradeModalOpen(true)}
@@ -834,16 +833,28 @@ export default function SettingsPage() {
             {TIER_PLANS.map((plan) => {
               const isCurrent = plan.key === currentTier
               const isRecommended = nextTier === plan.key
+              const isComingSoon = plan.key === 'Advanced' || plan.key === 'Enterprise'
               return (
                 <div
                   key={plan.key}
-                  className="rounded-xl border-2 bg-white p-4"
+                  className={[
+                    'relative rounded-xl border-2 bg-white p-4',
+                    isComingSoon ? 'opacity-70 pointer-events-none select-none' : '',
+                  ].join(' ')}
                   style={{
                     borderColor: isRecommended
                       ? 'color-mix(in srgb, var(--color-primary) 55%, hsl(215 22% 72%))'
                       : 'hsl(215 22% 82%)',
                   }}
                 >
+                  {isComingSoon ? (
+                    <span
+                      className="absolute right-3 top-3 rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-white"
+                      style={{ background: 'var(--color-warning)' }}
+                    >
+                      Coming soon
+                    </span>
+                  ) : null}
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div>
                       <div className="text-base font-semibold" style={{ color: 'var(--crm-content-header-text)' }}>
