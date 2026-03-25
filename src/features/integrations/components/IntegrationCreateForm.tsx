@@ -39,7 +39,7 @@ export default function IntegrationCreateForm({
 
   return (
     <form
-      className="grid grid-cols-1 md:grid-cols-2 gap-4"
+      className="grid grid-cols-1 md:grid-cols-2 gap-4 [color-scheme:light]"
       onSubmit={form.handleSubmit(async (values) => {
         await onSubmit({
           name: values.name.trim(),
@@ -49,44 +49,32 @@ export default function IntegrationCreateForm({
         })
       })}
     >
-      <label
-        className="flex flex-col gap-1 text-sm"
-        style={{ color: 'var(--crm-content-header-text, #0f172a)' }}
-      >
+      <label className="flex flex-col gap-1 text-sm font-medium text-slate-800">
         Integration name
         <input
-          className="rounded-md border-2 px-3 py-2 outline-none bg-white"
-          style={{ borderColor: 'hsl(215 22% 72%)', color: 'var(--crm-content-header-text, #0f172a)' }}
+          className="rounded-md border-2 border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none focus:border-[color:var(--color-primary)] focus:ring-1 focus:ring-[color:var(--color-primary)]"
           {...form.register('name')}
         />
         <FormFieldError message={form.formState.errors.name?.message} />
       </label>
 
-      <label
-        className="flex flex-col gap-1 text-sm"
-        style={{ color: 'var(--crm-content-header-text, #0f172a)' }}
-      >
+      <label className="flex flex-col gap-1 text-sm font-medium text-slate-800">
         Source label
         <input
-          className="rounded-md border-2 px-3 py-2 outline-none bg-white"
-          style={{ borderColor: 'hsl(215 22% 72%)', color: 'var(--crm-content-header-text, #0f172a)' }}
+          className="rounded-md border-2 border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none focus:border-[color:var(--color-primary)] focus:ring-1 focus:ring-[color:var(--color-primary)]"
           {...form.register('source_label')}
         />
         <FormFieldError message={form.formState.errors.source_label?.message} />
       </label>
 
-      <label
-        className="flex flex-col gap-1 text-sm md:col-span-2"
-        style={{ color: 'var(--crm-content-header-text, #0f172a)' }}
-      >
+      <label className="flex flex-col gap-1 text-sm font-medium text-slate-800 md:col-span-2">
         Default lead status
         <select
-          className="rounded-md border-2 px-3 py-2 outline-none bg-white"
-          style={{ borderColor: 'hsl(215 22% 72%)', color: 'var(--crm-content-header-text, #0f172a)' }}
+          className="rounded-md border-2 border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none focus:border-[color:var(--color-primary)] focus:ring-1 focus:ring-[color:var(--color-primary)]"
           {...form.register('default_status')}
         >
           {leadStatusValues.map((s) => (
-            <option key={s} value={s}>
+            <option key={s} value={s} className="bg-white text-slate-900">
               {s}
             </option>
           ))}

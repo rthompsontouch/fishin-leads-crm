@@ -130,11 +130,11 @@ export default function OnboardingPage() {
   return (
     <div
       className="min-h-dvh flex flex-col items-center px-4 py-10"
-      style={{ background: 'var(--color-background)', color: 'var(--color-foreground)' }}
+      style={{ background: 'var(--color-background)' }}
     >
       <div className="w-full max-w-xl">
         <div className="flex items-center justify-between gap-4 mb-8">
-          <div className="text-xs font-bold uppercase tracking-wider opacity-50">
+          <div className="text-xs font-bold uppercase tracking-wider text-slate-400">
             Setup · step {step + 1} / {STEPS.length}
           </div>
           <div className="flex gap-1">
@@ -154,7 +154,7 @@ export default function OnboardingPage() {
         </div>
 
         <div
-          className="rounded-2xl border border-slate-200/90 bg-white p-6 sm:p-8 shadow-md text-slate-900"
+          className="onboarding-light-panel rounded-2xl border border-slate-200/90 bg-white p-6 sm:p-8 shadow-md text-slate-900 [color-scheme:light]"
         >
           {step === 0 ? (
             <div className="space-y-4">
@@ -168,12 +168,12 @@ export default function OnboardingPage() {
                 </div>
               ) : null}
               <div className="space-y-2">
-                <h2 className="text-2xl font-semibold tracking-tight text-slate-900 m-0">
+                <p className="text-2xl font-semibold tracking-tight text-slate-950 m-0">
                   Welcome to Fishin Leads
-                </h2>
-                <p className="text-sm font-medium text-slate-500 m-0">Let&apos;s set up your workspace</p>
+                </p>
+                <p className="text-sm font-medium text-slate-600 m-0">Let&apos;s set up your workspace</p>
               </div>
-              <p className="text-sm text-slate-600 leading-relaxed m-0">
+              <p className="text-sm text-slate-700 leading-relaxed m-0">
                 In a few quick steps we&apos;ll confirm your company profile, connect website lead capture,
                 and add a sample lead so you can explore the pipeline.
               </p>
@@ -191,8 +191,8 @@ export default function OnboardingPage() {
 
           {step === 1 ? (
             <div className="space-y-4">
-              <h2 className="text-xl font-semibold text-slate-900 m-0">Set up your profile</h2>
-              <p className="text-sm text-slate-600 m-0">
+              <p className="text-xl font-semibold text-slate-950 m-0">Set up your profile</p>
+              <p className="text-sm text-slate-700 m-0">
                 This appears in your account and sidebar. You can change it later in Settings.
               </p>
               <form
@@ -238,8 +238,8 @@ export default function OnboardingPage() {
 
           {step === 2 ? (
             <div className="space-y-4">
-              <h2 className="text-xl font-semibold text-slate-900 m-0">{STEPS[2]}</h2>
-              <p className="text-sm text-slate-600 m-0">
+              <p className="text-xl font-semibold text-slate-950 m-0">{STEPS[2]}</p>
+              <p className="text-sm text-slate-700 m-0">
                 Create an integration to get an API key for your marketing site. You&apos;ll paste the key
                 into your form as the <code className="text-xs text-slate-800 bg-slate-100 px-1 rounded">x-api-key</code> header.
               </p>
@@ -271,7 +271,7 @@ export default function OnboardingPage() {
 
               {apiKeyModal ? (
                 <div className="pt-2">
-                  <p className="text-sm font-semibold mb-2 text-slate-900">Key created — copy it before continuing</p>
+                  <p className="text-sm font-semibold mb-2 text-slate-950">Key created — copy it before continuing</p>
                   <ApiKeyRevealModal
                     apiKey={apiKeyModal.apiKey}
                     webhookUrl={webhookUrl || ''}
@@ -287,8 +287,8 @@ export default function OnboardingPage() {
 
           {step === 3 ? (
             <div className="space-y-4">
-              <h2 className="text-xl font-semibold text-slate-900 m-0">{STEPS[3]}</h2>
-              <p className="text-sm text-slate-600 m-0">
+              <p className="text-xl font-semibold text-slate-950 m-0">{STEPS[3]}</p>
+              <p className="text-sm text-slate-700 m-0">
                 Add a demo lead to your pipeline so you can click through the CRM right away.
               </p>
               <button
