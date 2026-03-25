@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -14,6 +14,18 @@ const loginSchema = z.object({
 
 type LoginFormValues = z.infer<typeof loginSchema>
 
+/** Marketing links: `/login?email=user%40example.com` — browser usually decodes once; normalize safely. */
+function emailFromQueryRaw(raw: string | null): string {
+  if (raw == null) return ''
+  const trimmed = raw.trim()
+  if (!trimmed) return ''
+  try {
+    return decodeURIComponent(trimmed)
+  } catch {
+    return trimmed
+  }
+}
+
 export default function LoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
@@ -28,13 +40,36 @@ export default function LoginPage() {
   const [logoCandidateIndex, setLogoCandidateIndex] = useState(0)
   const [authBootstrapDone, setAuthBootstrapDone] = useState(!supabase)
 
-  const emailFromSignup = searchParams.get('email') ?? ''
+  const emailQueryRaw = searchParams.get('email')
+  const emailFromMarketing = useMemo(
+    () => emailFromQueryRaw(emailQueryRaw),
+    [emailQueryRaw],
+  )
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { email: emailFromSignup, password: '' },
+    defaultValues: { email: emailFromMarketing, password: '' },
     mode: 'onSubmit',
   })
+
+  const lastFocusedPasswordForEmailRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (!authBootstrapDone) return
+    if (!emailFromMarketing) return
+    form.setValue('email', emailFromMarketing, { shouldValidate: false, shouldDirty: false })
+  }, [authBootstrapDone, emailFromMarketing, form])
+
+  useEffect(() => {
+    if (!authBootstrapDone) return
+    if (!emailFromMarketing.trim()) return
+    if (lastFocusedPasswordForEmailRef.current === emailFromMarketing) return
+    lastFocusedPasswordForEmailRef.current = emailFromMarketing
+    const t = window.setTimeout(() => {
+      void form.setFocus('password', { shouldSelect: false })
+    }, 0)
+    return () => window.clearTimeout(t)
+  }, [authBootstrapDone, emailFromMarketing, form])
 
   const emailValue = form.watch('email')
   const [debouncedEmail, setDebouncedEmail] = useState('')
@@ -180,6 +215,7 @@ export default function LoginPage() {
             Email
             <input
               type="email"
+              autoComplete="email"
               className="rounded-md border px-3 py-2 outline-none"
               style={{
                 borderColor: 'var(--color-border)',
