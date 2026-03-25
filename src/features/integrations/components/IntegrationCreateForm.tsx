@@ -95,7 +95,12 @@ export default function IntegrationCreateForm({
       </label>
 
       <div className="md:col-span-2 flex items-center gap-2">
-        <input id="enabled" type="checkbox" className="h-4 w-4" {...form.register('enabled')} />
+        <input
+          id="enabled"
+          type="checkbox"
+          className="h-4 w-4 rounded border-slate-300 accent-emerald-600 focus-visible:ring-2 focus-visible:ring-emerald-500/40"
+          {...form.register('enabled')}
+        />
         <label htmlFor="enabled" className="text-sm cursor-pointer text-slate-700">
           Enabled
         </label>

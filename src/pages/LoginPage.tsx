@@ -26,6 +26,7 @@ export default function LoginPage() {
   const [rememberMe, setRememberMe] = useState(true)
   const [forgotOpen, setForgotOpen] = useState(false)
   const [logoCandidateIndex, setLogoCandidateIndex] = useState(0)
+  const [authBootstrapDone, setAuthBootstrapDone] = useState(!supabase)
 
   const emailFromSignup = searchParams.get('email') ?? ''
 
@@ -53,6 +54,23 @@ export default function LoginPage() {
   }, [debouncedEmail])
 
   const supabaseMissing = useMemo(() => !supabase, [])
+
+  useEffect(() => {
+    if (!supabase) return
+    let cancelled = false
+    void supabase.auth.getSession().then(({ data: { session } }) => {
+      if (cancelled) return
+      if (session) {
+        const to = redirectTo.startsWith('/') ? redirectTo : '/dashboard'
+        navigate(to, { replace: true })
+        return
+      }
+      setAuthBootstrapDone(true)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [supabase, navigate, redirectTo])
 
   const activeLogoSrc =
     logoCandidates.length > 0 && logoCandidateIndex < logoCandidates.length
@@ -82,6 +100,20 @@ export default function LoginPage() {
     }
 
     navigate(redirectTo, { replace: true })
+  }
+
+  if (!authBootstrapDone && supabase) {
+    return (
+      <div
+        className="min-h-dvh grid place-items-center p-6"
+        style={{
+          background: 'var(--color-background)',
+          color: 'var(--color-foreground)',
+        }}
+      >
+        <div className="text-sm opacity-80">Loading...</div>
+      </div>
+    )
   }
 
   return (

@@ -20,6 +20,7 @@ import ApiKeyRevealModal from '../features/integrations/components/ApiKeyRevealM
 import FormFieldError from '../components/FormFieldError'
 import { needsOnboarding } from '../lib/onboarding'
 import { formatErrorForUser, useAppMessages } from '../context/AppMessagesContext'
+import { getBundledSidebarLogoUrl } from '../assets/brand/brandAssets'
 
 const profileSchema = z.object({
   company_name: z.string().min(1, 'Company name is required.'),
@@ -29,6 +30,8 @@ const profileSchema = z.object({
 type ProfileValues = z.infer<typeof profileSchema>
 
 const STEPS = ['Welcome', 'Your profile', 'Lead capture', 'Sample lead'] as const
+
+const onboardingLogoUrl = getBundledSidebarLogoUrl()
 
 export default function OnboardingPage() {
   const navigate = useNavigate()
@@ -151,50 +154,63 @@ export default function OnboardingPage() {
         </div>
 
         <div
-          className="rounded-2xl border p-6 sm:p-8 shadow-sm"
-          style={{ borderColor: 'var(--color-border)', background: 'var(--color-surface-1)' }}
+          className="rounded-2xl border border-slate-200/90 bg-white p-6 sm:p-8 shadow-md text-slate-900"
         >
           {step === 0 ? (
             <div className="space-y-4">
-              <h1 className="text-2xl font-semibold">Welcome to Fishin Leads CRM</h1>
-              <p className="text-sm opacity-80 leading-relaxed">
-                Let&apos;s connect your workspace in a few quick steps: confirm your company profile, set up
-                website lead capture, and add a sample lead so you can explore the pipeline.
+              {onboardingLogoUrl ? (
+                <div className="flex justify-center sm:justify-start">
+                  <img
+                    src={onboardingLogoUrl}
+                    alt="Fishin Leads"
+                    className="h-11 w-auto max-w-[220px] object-contain object-left"
+                  />
+                </div>
+              ) : null}
+              <div className="space-y-2">
+                <h2 className="text-2xl font-semibold tracking-tight text-slate-900 m-0">
+                  Welcome to Fishin Leads
+                </h2>
+                <p className="text-sm font-medium text-slate-500 m-0">Let&apos;s set up your workspace</p>
+              </div>
+              <p className="text-sm text-slate-600 leading-relaxed m-0">
+                In a few quick steps we&apos;ll confirm your company profile, connect website lead capture,
+                and add a sample lead so you can explore the pipeline.
               </p>
-              <button
-                type="button"
-                className="w-full sm:w-auto rounded-md px-5 py-2.5 text-sm font-semibold text-white bg-[color:var(--color-primary)] hover:bg-[color:var(--color-primary-dark)]"
-                onClick={() => setStep(1)}
-              >
-                Get started
-              </button>
+              <div className="pt-4">
+                <button
+                  type="button"
+                  className="w-full sm:w-auto rounded-md px-5 py-2.5 text-sm font-semibold text-white bg-[color:var(--color-primary)] hover:bg-[color:var(--color-primary-dark)] transition-colors duration-150"
+                  onClick={() => setStep(1)}
+                >
+                  Get started
+                </button>
+              </div>
             </div>
           ) : null}
 
           {step === 1 ? (
             <div className="space-y-4">
-              <h1 className="text-xl font-semibold">{STEPS[1]}</h1>
-              <p className="text-sm opacity-80">
+              <h2 className="text-xl font-semibold text-slate-900 m-0">Set up your profile</h2>
+              <p className="text-sm text-slate-600 m-0">
                 This appears in your account and sidebar. You can change it later in Settings.
               </p>
               <form
                 className="grid gap-4"
                 onSubmit={profileForm.handleSubmit((v) => void onProfileSubmit(v))}
               >
-                <label className="flex flex-col gap-1 text-sm">
+                <label className="flex flex-col gap-1 text-sm text-slate-700">
                   Company name
                   <input
-                    className="rounded-md border px-3 py-2 outline-none"
-                    style={{ borderColor: 'var(--color-border)', background: 'var(--color-background)' }}
+                    className="rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none focus:border-[color:var(--color-primary)] focus:ring-1 focus:ring-[color:var(--color-primary)]"
                     {...profileForm.register('company_name')}
                   />
                   <FormFieldError message={profileForm.formState.errors.company_name?.message} />
                 </label>
-                <label className="flex flex-col gap-1 text-sm">
+                <label className="flex flex-col gap-1 text-sm text-slate-700">
                   Display name
                   <input
-                    className="rounded-md border px-3 py-2 outline-none"
-                    style={{ borderColor: 'var(--color-border)', background: 'var(--color-background)' }}
+                    className="rounded-md border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none focus:border-[color:var(--color-primary)] focus:ring-1 focus:ring-[color:var(--color-primary)]"
                     placeholder="Your name or how you sign emails"
                     {...profileForm.register('display_name')}
                   />
@@ -203,7 +219,7 @@ export default function OnboardingPage() {
                 <div className="flex justify-between gap-2 pt-2">
                   <button
                     type="button"
-                    className="rounded-md px-4 py-2 text-sm font-semibold border border-[color:var(--color-border)]"
+                    className="rounded-md px-4 py-2 text-sm font-semibold border border-slate-300 bg-white text-slate-800 hover:bg-slate-50 hover:border-slate-400 transition-colors duration-150"
                     onClick={() => setStep(0)}
                   >
                     Back
@@ -211,7 +227,7 @@ export default function OnboardingPage() {
                   <button
                     type="submit"
                     disabled={profileForm.formState.isSubmitting}
-                    className="rounded-md px-4 py-2 text-sm font-semibold text-white bg-[color:var(--color-primary)] disabled:opacity-60"
+                    className="rounded-md px-4 py-2 text-sm font-semibold text-white bg-[color:var(--color-primary)] hover:bg-[color:var(--color-primary-dark)] disabled:opacity-60 transition-colors duration-150"
                   >
                     {profileForm.formState.isSubmitting ? 'Saving…' : 'Continue'}
                   </button>
@@ -222,23 +238,20 @@ export default function OnboardingPage() {
 
           {step === 2 ? (
             <div className="space-y-4">
-              <h1 className="text-xl font-semibold">{STEPS[2]}</h1>
-              <p className="text-sm opacity-80">
+              <h2 className="text-xl font-semibold text-slate-900 m-0">{STEPS[2]}</h2>
+              <p className="text-sm text-slate-600 m-0">
                 Create an integration to get an API key for your marketing site. You&apos;ll paste the key
-                into your form as the <code className="text-xs">x-api-key</code> header.
+                into your form as the <code className="text-xs text-slate-800 bg-slate-100 px-1 rounded">x-api-key</code> header.
               </p>
               {webhookUrl ? (
-                <div
-                  className="rounded-lg border p-3 text-xs"
-                  style={{ borderColor: 'var(--color-border)', background: 'var(--color-background)' }}
-                >
-                  <div className="opacity-70 mb-1">Webhook URL (for your developer)</div>
-                  <div className="font-mono break-all">{webhookUrl}</div>
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-800">
+                  <div className="text-slate-500 mb-1 font-medium">Webhook URL (for your developer)</div>
+                  <div className="font-mono break-all text-slate-900">{webhookUrl}</div>
                 </div>
               ) : (
-                <div className="text-xs opacity-70">
-                  Set <code className="text-[11px]">VITE_SUPABASE_URL</code> (or optional{' '}
-                  <code className="text-[11px]">VITE_WEBSITE_LEAD_CAPTURE_URL</code>) in your env to show the
+                <div className="text-xs text-slate-600">
+                  Set <code className="text-[11px] bg-slate-100 px-1 rounded">VITE_SUPABASE_URL</code> (or optional{' '}
+                  <code className="text-[11px] bg-slate-100 px-1 rounded">VITE_WEBSITE_LEAD_CAPTURE_URL</code>) in your env to show the
                   webhook URL here.
                 </div>
               )}
@@ -250,7 +263,7 @@ export default function OnboardingPage() {
 
               <button
                 type="button"
-                className="text-sm font-semibold text-[color:var(--color-primary)] hover:underline"
+                className="text-sm font-semibold text-[color:var(--color-primary)] hover:underline transition-opacity hover:opacity-90"
                 onClick={() => setStep(1)}
               >
                 ← Back
@@ -258,7 +271,7 @@ export default function OnboardingPage() {
 
               {apiKeyModal ? (
                 <div className="pt-2">
-                  <p className="text-sm font-semibold mb-2">Key created — copy it before continuing</p>
+                  <p className="text-sm font-semibold mb-2 text-slate-900">Key created — copy it before continuing</p>
                   <ApiKeyRevealModal
                     apiKey={apiKeyModal.apiKey}
                     webhookUrl={webhookUrl || ''}
@@ -274,20 +287,20 @@ export default function OnboardingPage() {
 
           {step === 3 ? (
             <div className="space-y-4">
-              <h1 className="text-xl font-semibold">{STEPS[3]}</h1>
-              <p className="text-sm opacity-80">
+              <h2 className="text-xl font-semibold text-slate-900 m-0">{STEPS[3]}</h2>
+              <p className="text-sm text-slate-600 m-0">
                 Add a demo lead to your pipeline so you can click through the CRM right away.
               </p>
               <button
                 type="button"
-                className="w-full rounded-md px-4 py-3 text-sm font-semibold text-white bg-[color:var(--color-primary)] hover:bg-[color:var(--color-primary-dark)]"
+                className="w-full rounded-md px-4 py-3 text-sm font-semibold text-white bg-[color:var(--color-primary)] hover:bg-[color:var(--color-primary-dark)] transition-colors duration-150"
                 onClick={() => void finishWithSampleLead()}
               >
                 Add sample lead &amp; go to dashboard
               </button>
               <button
                 type="button"
-                className="text-sm font-semibold text-[color:var(--color-primary)] hover:underline"
+                className="text-sm font-semibold text-[color:var(--color-primary)] hover:underline transition-opacity hover:opacity-90"
                 onClick={() => setStep(2)}
               >
                 ← Back
